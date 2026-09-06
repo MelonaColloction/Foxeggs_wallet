@@ -807,6 +807,8 @@
             unlocked: false,
             wallets: [],
             activeWalletIndex: -1,
+            currentPassword: null,
+            pendingSwitchIndex: undefined,
         };
 
         let newMnemonic = '';
@@ -844,6 +846,7 @@
                 loadingNFT: '🔄 در حال بارگذاری NFT...',
                 nftError: '❌ خطا در بارگذاری NFT',
                 select: 'انتخاب',
+                selected: 'انتخاب شد',
                 recipient: 'آدرس گیرنده',
                 nftId: 'شناسه',
                 nftAmount: 'تعداد',
@@ -919,6 +922,7 @@
                 loadingNFT: '🔄 Loading NFTs...',
                 nftError: '❌ Error loading NFTs',
                 select: 'Select',
+                selected: 'Selected',
                 recipient: 'Recipient Address',
                 nftId: 'ID',
                 nftAmount: 'Quantity',
@@ -987,6 +991,15 @@
             }
 
             updateUI();
+            
+            // اگر کیف پول متصل است، دوباره وضعیت را نمایش بده
+            if (state.address && state.unlocked) {
+                // موجودی و NFT ها را دوباره دریافت کن
+                refreshAll();
+            } else if (state.address && !state.unlocked) {
+                // اگر کیف پول قفل است، پیام قفل را نمایش بده
+                status(t('locked'), 'info');
+            }
         }
 
         function t(key) {
@@ -994,6 +1007,7 @@
         }
 
         function updateUI() {
+            // به‌روزرسانی المان‌های دارای data-i18n
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const translation = translations[currentLang][key];
@@ -1008,6 +1022,34 @@
 
             document.getElementById('footerText').textContent = t('footer');
             updateWalletDropdown();
+
+            // به‌روزرسانی آدرس کیف پول
+            if (state.address) {
+                document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(state.address);
+            } else {
+                document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
+            }
+
+            // به‌روزرسانی وضعیت اتصال
+            if (state.provider) {
+                if (state.address && state.unlocked) {
+                    status(t('connected'), 'success');
+                } else if (state.address && !state.unlocked) {
+                    status(t('locked'), 'info');
+                }
+            }
+
+            // اگر کیف پول قفل است و لاگین مودال باز نیست، آن را نشان بده
+            if (state.address && !state.unlocked) {
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal.classList.contains('closed')) {
+                    loginModal.classList.remove('closed');
+                    document.getElementById('loginOptions').classList.add('hidden');
+                    document.getElementById('unlockSection').classList.remove('hidden');
+                    document.getElementById('createSection').classList.add('hidden');
+                    document.getElementById('importSection').classList.add('hidden');
+                }
+            }
         }
 
         // ========================================
@@ -1076,7 +1118,7 @@
             // اگر رمز این کیف پول در حافظه هست، مستقیم سوئیچ کن
             try {
                 // امتحان کن با رمز جاری (اگر کاربر لاگین کرده)
-                if (state.unlocked && state.encryptedSeed) {
+                if (state.unlocked && state.encryptedSeed && state.currentPassword) {
                     // اگر کاربر لاگین کرده، از رمز فعلی استفاده کن
                     const seed = decrypt(wallet.encryptedSeed, state.currentPassword);
                     const walletInstance = ethers.Wallet.fromMnemonic(seed);
@@ -1125,6 +1167,7 @@
                 state.encryptedSeed = null;
                 state.signer = null;
                 state.unlocked = false;
+                state.currentPassword = null;
                 document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
                 document.getElementById('avaxBalance').textContent = '0';
                 document.getElementById('nftList').innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
@@ -1282,6 +1325,7 @@
             const el = document.getElementById('toast');
             el.textContent = msg;
             el.className = `toast ${type}`;
+            el.classList.remove('hidden');
             setTimeout(() => el.classList.add('hidden'), 4000);
         }
 
@@ -1811,7 +1855,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             const elements = {
                 'status': 'connecting',
-                'addressDisplay': 'notConnectedAddr',
                 'copyLabel': 'copy',
                 'gasLabel': 'gas',
                 'sendNFTLabel': 'sendNFT',
@@ -1881,4 +1924,4 @@
     </script>
 
 </body>
-  </html>
+    </html>
