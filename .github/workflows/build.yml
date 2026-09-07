@@ -1,0 +1,334 @@
+name: Build FoxEggs Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Prepare web files
+        run: |
+          test -f index.html
+          rm -rf www
+          mkdir -p www
+          cp index.html www/
+          cp -r assets www/ 2>/dev/null || true
+
+      - name: Create package.json
+        run: |
+          cat > package.json <<'EOF'
+          {
+            "name": "foxeggs-wallet",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/core": "^6.0.0",
+              "@capacitor/android": "^6.0.0",
+              "@capacitor/splash-screen": "^6.0.0",
+              "@capacitor/app": "^6.0.0"
+            },
+            "devDependencies": {
+              "@capacitor/cli": "^6.0.0"
+            }
+          }
+          EOF
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Create Capacitor config
+        run: |
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.foxeggs.wallet",
+            "appName": "FoxEggs Wallet",
+            "webDir": "www",
+            "bundledWebRuntime": false,
+            "plugins": {
+              "SplashScreen": {
+                "launchShowDuration": 1500,
+                "backgroundColor": "#0b0e1a"
+              }
+            }
+          }
+          EOF
+
+      - name: Add Android
+        run: |
+          npx cap add android
+
+      - name: Sync Android
+        run: |
+          npx cap sync android
+
+      - name: Set version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          VERSION_CODE=$((RUN_NUMBER + 100))
+          VERSION_NAME="1.0.${RUN_NUMBER}"
+          
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          
+          echo "Version Code: $VERSION_CODE"
+          echo "Version Name: $VERSION_NAME"
+
+      - name: Install Pillow
+        run: |
+          python3 -m pip install pillow
+
+      - name: Create FoxEggs icon
+        run: |
+          cat > create_fox_icon.py <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+
+          S = 1024
+
+          img = Image.new("RGBA", (S, S), (11, 14, 26, 255))
+          d = ImageDraw.Draw(img)
+
+          # Glowing circle background
+          for r in range(400, 300, -20):
+              alpha = int(20 * (1 - (r - 300) / 100))
+              d.ellipse((S//2 - r, S//2 - r, S//2 + r, S//2 + r), outline=(233, 69, 96, alpha), width=2)
+
+          # Main circle
+          d.ellipse((S//2 - 380, S//2 - 380, S//2 + 380, S//2 + 380), 
+                    fill=(26, 26, 58, 255), outline=(233, 69, 96, 200), width=8)
+
+          # Fox face
+          fox_color = (255, 130, 50, 255)
+          fox_dark = (200, 80, 20, 255)
+
+          points = [(S//2, 280), (S//2 - 280, 620), (S//2 + 280, 620)]
+          d.polygon(points, fill=fox_color)
+
+          # Ears
+          d.polygon([(S//2 - 200, 340), (S//2 - 280, 220), (S//2 - 140, 290)], fill=fox_dark)
+          d.polygon([(S//2 + 200, 340), (S//2 + 280, 220), (S//2 + 140, 290)], fill=fox_dark)
+
+          # White face
+          d.polygon([(S//2, 400), (S//2 - 160, 500), (S//2 - 180, 580), 
+                     (S//2, 620), (S//2 + 180, 580), (S//2 + 160, 500)], 
+                    fill=(255, 255, 255, 220))
+
+          # Eyes
+          d.ellipse((S//2 - 120, 430, S//2 - 70, 480), fill=(0, 0, 0, 255))
+          d.ellipse((S//2 - 110, 440, S//2 - 80, 470), fill=(255, 255, 255, 200))
+          d.ellipse((S//2 + 70, 430, S//2 + 120, 480), fill=(0, 0, 0, 255))
+          d.ellipse((S//2 + 80, 440, S//2 + 110, 470), fill=(255, 255, 255, 200))
+
+          # Nose
+          d.ellipse((S//2 - 30, 480, S//2 + 30, 520), fill=(0, 0, 0, 255))
+
+          # Mouth
+          d.arc((S//2 - 50, 510, S//2 + 50, 550), start=20, end=160, fill=(0, 0, 0, 200), width=6)
+
+          # Text
+          try:
+              font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
+          except:
+              font = ImageFont.load_default()
+
+          d.text((S//2 + 2, 730), "FoxEggs", font=font, fill=(0, 0, 0, 100), anchor="mm")
+          d.text((S//2, 728), "FoxEggs", font=font, fill=(233, 69, 96, 255), anchor="mm")
+
+          try:
+              font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
+          except:
+              font_small = ImageFont.load_default()
+
+          d.text((S//2, 790), "Avalanche Wallet", font=font_small, fill=(138, 155, 181, 200), anchor="mm")
+
+          img.save("foxeggs-icon.png", "PNG")
+          print("FoxEggs icon created successfully.")
+          PY
+
+          python3 create_fox_icon.py
+          test -s foxeggs-icon.png
+
+      - name: Generate Android icons
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          import os
+
+          source = Image.open("foxeggs-icon.png").convert("RGBA")
+          sizes = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
+
+          for density, size in sizes.items():
+              folder = "android/app/src/main/res/mipmap-" + density
+              os.makedirs(folder, exist_ok=True)
+              icon = source.resize((size, size), Image.Resampling.LANCZOS)
+              icon.save(folder + "/ic_launcher.png")
+              icon.save(folder + "/ic_launcher_round.png")
+          print("Android icons generated successfully.")
+          PY
+
+      - name: Remove adaptive icon defaults
+        run: |
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+      - name: Configure App Icon
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text(encoding="utf-8")
+
+          if "android:icon=" in text:
+              text = re.sub(r'android:icon="[^"]+"', 'android:icon="@mipmap/ic_launcher"', text)
+          if "android:roundIcon=" in text:
+              text = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@mipmap/ic_launcher_round"', text)
+          manifest.write_text(text, encoding="utf-8")
+
+          strings = Path("android/app/src/main/res/values/strings.xml")
+          if strings.exists():
+              text = strings.read_text(encoding="utf-8")
+              text = re.sub(r'<string name="app_name">.*?</string>', '<string name="app_name">FoxEggs</string>', text)
+              strings.write_text(text, encoding="utf-8")
+          print("Icon and app name configured.")
+          PY
+
+      - name: Generate Keystore
+        run: |
+          keytool -genkey -v \
+            -keystore foxeggs.keystore \
+            -alias foxeggs \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass foxeggs123 \
+            -keypass foxeggs123 \
+            -dname "CN=FoxEggs Wallet, OU=Development, O=FoxEggs, L=Unknown, ST=Unknown, C=XX"
+          cp foxeggs.keystore android/app/foxeggs.keystore
+
+      - name: Configure signing properties
+        run: |
+          cat >> android/gradle.properties <<EOF
+          FOXEGGS_KEYSTORE_FILE=foxeggs.keystore
+          FOXEGGS_KEYSTORE_PASSWORD=foxeggs123
+          FOXEGGS_KEY_ALIAS=foxeggs
+          FOXEGGS_KEY_PASSWORD=foxeggs123
+          EOF
+
+      - name: Configure Android Gradle
+        run: |
+          python3 - <<'PY'
+          import re
+          import os
+
+          path = "android/app/build.gradle"
+          with open(path, "r", encoding="utf-8") as f:
+              text = f.read()
+
+          # Application ID
+          text = re.sub(r'applicationId\s+"[^"]+"', 'applicationId "com.foxeggs.wallet"', text, count=1)
+          text = re.sub(r'compileSdk\s+[^\n]+', 'compileSdk 35', text, count=1)
+          
+          # Version - always updated
+          text = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ["VERSION_CODE"], text, count=1)
+          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "' + os.environ["VERSION_NAME"] + '"', text, count=1)
+
+          # Remove existing signingConfigs
+          text = re.sub(r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)', '', text, flags=re.S)
+
+          # Add signingConfigs
+          signing_block = '''
+              signingConfigs {
+                  release {
+                      storeFile file(FOXEGGS_KEYSTORE_FILE)
+                      storePassword FOXEGGS_KEYSTORE_PASSWORD
+                      keyAlias FOXEGGS_KEY_ALIAS
+                      keyPassword FOXEGGS_KEY_PASSWORD
+                      v1SigningEnabled true
+                      v2SigningEnabled true
+                  }
+              }
+
+          '''
+          if "signingConfigs {" not in text:
+              text = text.replace("    buildTypes {", signing_block + "    buildTypes {", 1)
+
+          # Add release signing
+          pattern = r'(buildTypes\s*\{\s*release\s*\{)'
+          replacement = r'\1\n            signingConfig signingConfigs.release'
+          if "signingConfig signingConfigs.release" not in text:
+              text = re.sub(pattern, replacement, text, count=1, flags=re.S)
+
+          # Disable minification
+          text = re.sub(r'minifyEnabled\s+\w+', 'minifyEnabled false', text, count=1)
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(text)
+          print("Android Gradle configured successfully.")
+          PY
+
+      - name: Build Release APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew clean
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Verify APK
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          echo "=========================================="
+          echo "APK CREATED"
+          echo "=========================================="
+          ls -lh "$APK"
+          echo ""
+          echo "SHA256:"
+          sha256sum "$APK"
+
+      - name: Build Release AAB
+        working-directory: android
+        run: |
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Prepare release
+        run: |
+          mkdir -p release
+          cp android/app/build/outputs/apk/release/app-release.apk release/FoxEggs-Wallet.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab release/FoxEggs-Wallet.aab
+          cp foxeggs-icon.png release/icon.png
+
+      - name: Upload FoxEggs Release
+        uses: actions/upload-artifact@v6
+        with:
+          name: FoxEggs-Android-Release
+          path: release/
+          if-no-files-found: error
