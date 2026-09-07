@@ -1011,7 +1011,6 @@
             }
 
             updateUI();
-            // فقط زبان رو تغییر بده، هیچ بروزرسانی انجام نده
         }
 
         function t(key) {
@@ -1019,7 +1018,6 @@
         }
 
         function updateUI() {
-            // به‌روزرسانی المان‌های دارای data-i18n
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const translation = translations[currentLang][key];
@@ -1035,14 +1033,12 @@
             document.getElementById('footerText').textContent = t('footer');
             updateWalletDropdown();
 
-            // به‌روزرسانی آدرس کیف پول
             if (state.address) {
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(state.address);
             } else {
                 document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
             }
 
-            // به‌روزرسانی وضعیت اتصال
             if (state.provider) {
                 if (state.address && state.unlocked) {
                     status(t('connected'), 'success');
@@ -1051,7 +1047,6 @@
                 }
             }
 
-            // اگر کیف پول قفل است و لاگین مودال باز نیست، آن را نشان بده
             if (state.address && !state.unlocked) {
                 const loginModal = document.getElementById('loginModal');
                 if (loginModal.classList.contains('closed')) {
@@ -1127,11 +1122,8 @@
             const wallet = state.wallets[index];
             if (!wallet) return;
 
-            // اگر رمز این کیف پول در حافظه هست، مستقیم سوئیچ کن
             try {
-                // امتحان کن با رمز جاری (اگر کاربر لاگین کرده)
                 if (state.unlocked && state.encryptedSeed && state.currentPassword) {
-                    // اگر کاربر لاگین کرده، از رمز فعلی استفاده کن
                     const seed = decrypt(wallet.encryptedSeed, state.currentPassword);
                     const walletInstance = ethers.Wallet.fromMnemonic(seed);
 
@@ -1151,7 +1143,6 @@
                 }
             } catch (e) {}
 
-            // اگر کاربر لاگین نیست یا رمز اشتباه است، درخواست رمز کن
             document.getElementById('loginModal').classList.remove('closed');
             document.getElementById('loginOptions').classList.add('hidden');
             document.getElementById('unlockSection').classList.remove('hidden');
@@ -1351,10 +1342,8 @@
             }
 
             try {
-                // Verify password by decrypting
                 decrypt(state.encryptedSeed, pass);
                 
-                // If password is correct, perform logout
                 state.address = null;
                 state.encryptedSeed = null;
                 state.signer = null;
@@ -1706,7 +1695,8 @@
                 }
 
                 const DIRECT_IMAGES = {
-                    1: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_000000006388820a9e81206aff28fc69.png'
+                    1: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_000000006388820a9e81206aff28fc69.png',
+                    2: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_0000000093f881f4932b77859f58ddef.png'
                 };
 
                 let html = '<div class="nft-grid">';
@@ -1766,13 +1756,6 @@
                                 console.log('Error loading metadata for NFT #' + item.id, e);
                             }
                         }
-                    }
-
-                    if (item.id === 2) {
-                        isPlaceholder = true;
-                        imageLoaded = false;
-                        img = '';
-                        name = 'NFT #2 (بدون تصویر)';
                     }
 
                     let imageHtml = '';
