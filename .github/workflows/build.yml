@@ -7,7 +7,7 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write  # مهم برای ایجاد Release
 
 jobs:
   build:
@@ -58,14 +58,9 @@ jobs:
 
       - name: Prepare web files
         run: |
-          # Check if index.html exists
           test -f index.html
-
-          # Create www directory for Capacitor
           rm -rf www
           mkdir -p www
-
-          # Copy all web files
           cp index.html www/
           cp -r assets www/ 2>/dev/null || true
 
@@ -182,217 +177,64 @@ jobs:
 
           S = 1024
 
-          # -----------------------------------------
-          # Canvas - Dark background
-          # -----------------------------------------
-
-          img = Image.new(
-              "RGBA",
-              (S, S),
-              (11, 14, 26, 255)  # #0b0e1a
-          )
-
+          img = Image.new("RGBA", (S, S), (11, 14, 26, 255))
           d = ImageDraw.Draw(img)
-
-
-          # -----------------------------------------
-          # Glowing circle background
-          # -----------------------------------------
 
           for r in range(400, 300, -20):
               alpha = int(20 * (1 - (r - 300) / 100))
-              d.ellipse(
-                  (S//2 - r, S//2 - r, S//2 + r, S//2 + r),
-                  outline=(233, 69, 96, alpha),
-                  width=2
-              )
+              d.ellipse((S//2 - r, S//2 - r, S//2 + r, S//2 + r),
+                        outline=(233, 69, 96, alpha), width=2)
 
+          d.ellipse((S//2 - 380, S//2 - 380, S//2 + 380, S//2 + 380),
+                    fill=(26, 26, 58, 255), outline=(233, 69, 96, 200), width=8)
 
-          # -----------------------------------------
-          # Main circular background
-          # -----------------------------------------
-
-          d.ellipse(
-              (S//2 - 380, S//2 - 380, S//2 + 380, S//2 + 380),
-              fill=(26, 26, 58, 255),  # #1a1a3a
-              outline=(233, 69, 96, 200),
-              width=8
-          )
-
-
-          # -----------------------------------------
-          # Fox head - simplified
-          # -----------------------------------------
-
-          # Fox face (orange)
           fox_color = (255, 130, 50, 255)
           fox_dark = (200, 80, 20, 255)
 
-          # Fox head shape (rounded triangle)
-          points = [
-              (S//2, 280),          # Top
-              (S//2 - 280, 620),    # Bottom left
-              (S//2 + 280, 620),    # Bottom right
-          ]
-
+          points = [(S//2, 280), (S//2 - 280, 620), (S//2 + 280, 620)]
           d.polygon(points, fill=fox_color)
 
+          d.polygon([(S//2 - 200, 340), (S//2 - 280, 220), (S//2 - 140, 290)], fill=fox_dark)
+          d.polygon([(S//2 + 200, 340), (S//2 + 280, 220), (S//2 + 140, 290)], fill=fox_dark)
 
-          # -----------------------------------------
-          # Fox ears
-          # -----------------------------------------
+          d.polygon([(S//2, 400), (S//2 - 160, 500), (S//2 - 180, 580),
+                     (S//2, 620), (S//2 + 180, 580), (S//2 + 160, 500)],
+                    fill=(255, 255, 255, 220))
 
-          # Left ear
-          d.polygon([
-              (S//2 - 200, 340),
-              (S//2 - 280, 220),
-              (S//2 - 140, 290)
-          ], fill=fox_dark)
+          d.ellipse((S//2 - 120, 430, S//2 - 70, 480), fill=(0, 0, 0, 255))
+          d.ellipse((S//2 - 110, 440, S//2 - 80, 470), fill=(255, 255, 255, 200))
+          d.ellipse((S//2 + 70, 430, S//2 + 120, 480), fill=(0, 0, 0, 255))
+          d.ellipse((S//2 + 80, 440, S//2 + 110, 470), fill=(255, 255, 255, 200))
 
-          # Right ear
-          d.polygon([
-              (S//2 + 200, 340),
-              (S//2 + 280, 220),
-              (S//2 + 140, 290)
-          ], fill=fox_dark)
+          d.ellipse((S//2 - 30, 480, S//2 + 30, 520), fill=(0, 0, 0, 255))
+          d.arc((S//2 - 50, 510, S//2 + 50, 550), start=20, end=160, fill=(0, 0, 0, 200), width=6)
 
-
-          # -----------------------------------------
-          # White face area
-          # -----------------------------------------
-
-          d.polygon([
-              (S//2, 400),
-              (S//2 - 160, 500),
-              (S//2 - 180, 580),
-              (S//2, 620),
-              (S//2 + 180, 580),
-              (S//2 + 160, 500),
-          ], fill=(255, 255, 255, 220))
-
-
-          # -----------------------------------------
-          # Eyes
-          # -----------------------------------------
-
-          # Left eye
-          d.ellipse(
-              (S//2 - 120, 430, S//2 - 70, 480),
-              fill=(0, 0, 0, 255)
-          )
-          d.ellipse(
-              (S//2 - 110, 440, S//2 - 80, 470),
-              fill=(255, 255, 255, 200)
-          )
-
-          # Right eye
-          d.ellipse(
-              (S//2 + 70, 430, S//2 + 120, 480),
-              fill=(0, 0, 0, 255)
-          )
-          d.ellipse(
-              (S//2 + 80, 440, S//2 + 110, 470),
-              fill=(255, 255, 255, 200)
-          )
-
-
-          # -----------------------------------------
-          # Nose
-          # -----------------------------------------
-
-          d.ellipse(
-              (S//2 - 30, 480, S//2 + 30, 520),
-              fill=(0, 0, 0, 255)
-          )
-
-
-          # -----------------------------------------
-          # Mouth
-          # -----------------------------------------
-
-          d.arc(
-              (S//2 - 50, 510, S//2 + 50, 550),
-              start=20,
-              end=160,
-              fill=(0, 0, 0, 200),
-              width=6
-          )
-
-
-          # -----------------------------------------
-          # Egg symbol (background)
-          # -----------------------------------------
-
-          # Glowing egg behind fox
-          d.ellipse(
-              (S//2 - 60, S//2 - 80, S//2 + 60, S//2 + 80),
-              outline=(233, 69, 96, 100),
-              width=4
-          )
-
-
-          # -----------------------------------------
-          # Text: FoxEggs
-          # -----------------------------------------
+          d.ellipse((S//2 - 60, S//2 - 80, S//2 + 60, S//2 + 80),
+                    outline=(233, 69, 96, 100), width=4)
 
           try:
               font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 80)
           except:
               font = ImageFont.load_default()
 
-          # Shadow
-          d.text(
-              (S//2 + 2, 730),
-              "FoxEggs",
-              font=font,
-              fill=(0, 0, 0, 100),
-              anchor="mm"
-          )
-
-          # Main text
-          d.text(
-              (S//2, 728),
-              "FoxEggs",
-              font=font,
-              fill=(233, 69, 96, 255),
-              anchor="mm"
-          )
-
-
-          # -----------------------------------------
-          # Small subtitle
-          # -----------------------------------------
+          d.text((S//2 + 2, 730), "FoxEggs", font=font, fill=(0, 0, 0, 100), anchor="mm")
+          d.text((S//2, 728), "FoxEggs", font=font, fill=(233, 69, 96, 255), anchor="mm")
 
           try:
               font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
           except:
               font_small = ImageFont.load_default()
 
-          d.text(
-              (S//2, 790),
-              "Avalanche Wallet",
-              font=font_small,
-              fill=(138, 155, 181, 200),
-              anchor="mm"
-          )
+          d.text((S//2, 790), "Avalanche Wallet", font=font_small,
+                 fill=(138, 155, 181, 200), anchor="mm")
 
-
-          # -----------------------------------------
-          # Save PNG
-          # -----------------------------------------
-
-          img.save(
-              "foxeggs-icon.png",
-              "PNG"
-          )
-
+          img.save("foxeggs-icon.png", "PNG")
           print("FoxEggs icon created successfully.")
 
           PY
 
 
           python3 create_fox_icon.py
-
           test -s foxeggs-icon.png
 
 
@@ -408,40 +250,16 @@ jobs:
           from PIL import Image
           import os
 
-          source = Image.open(
-              "foxeggs-icon.png"
-          ).convert("RGBA")
+          source = Image.open("foxeggs-icon.png").convert("RGBA")
 
-          sizes = {
-              "mdpi": 48,
-              "hdpi": 72,
-              "xhdpi": 96,
-              "xxhdpi": 144,
-              "xxxhdpi": 192
-          }
+          sizes = {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}
 
           for density, size in sizes.items():
-              folder = (
-                  "android/app/src/main/res/mipmap-"
-                  + density
-              )
-              os.makedirs(
-                  folder,
-                  exist_ok=True
-              )
-
-              icon = source.resize(
-                  (size, size),
-                  Image.Resampling.LANCZOS
-              )
-
-              icon.save(
-                  folder + "/ic_launcher.png"
-              )
-
-              icon.save(
-                  folder + "/ic_launcher_round.png"
-              )
+              folder = "android/app/src/main/res/mipmap-" + density
+              os.makedirs(folder, exist_ok=True)
+              icon = source.resize((size, size), Image.Resampling.LANCZOS)
+              icon.save(folder + "/ic_launcher.png")
+              icon.save(folder + "/ic_launcher_round.png")
 
           print("Android icons generated successfully.")
 
@@ -470,39 +288,19 @@ jobs:
           from pathlib import Path
           import re
 
-          # Android Manifest
-          manifest = Path(
-              "android/app/src/main/AndroidManifest.xml"
-          )
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
           text = manifest.read_text(encoding="utf-8")
 
           if "android:icon=" in text:
-              text = re.sub(
-                  r'android:icon="[^"]+"',
-                  'android:icon="@mipmap/ic_launcher"',
-                  text
-              )
-
+              text = re.sub(r'android:icon="[^"]+"', 'android:icon="@mipmap/ic_launcher"', text)
           if "android:roundIcon=" in text:
-              text = re.sub(
-                  r'android:roundIcon="[^"]+"',
-                  'android:roundIcon="@mipmap/ic_launcher_round"',
-                  text
-              )
-
+              text = re.sub(r'android:roundIcon="[^"]+"', 'android:roundIcon="@mipmap/ic_launcher_round"', text)
           manifest.write_text(text, encoding="utf-8")
 
-          # App name
-          strings = Path(
-              "android/app/src/main/res/values/strings.xml"
-          )
+          strings = Path("android/app/src/main/res/values/strings.xml")
           if strings.exists():
               text = strings.read_text(encoding="utf-8")
-              text = re.sub(
-                  r'<string name="app_name">.*?</string>',
-                  '<string name="app_name">FoxEggs</string>',
-                  text
-              )
+              text = re.sub(r'<string name="app_name">.*?</string>', '<string name="app_name">FoxEggs</string>', text)
               strings.write_text(text, encoding="utf-8")
 
           print("Icon and app name configured.")
@@ -516,7 +314,6 @@ jobs:
 
       - name: Generate Keystore
         run: |
-          # Generate a self-signed keystore
           keytool -genkey -v \
             -keystore foxeggs.keystore \
             -alias foxeggs \
@@ -526,10 +323,7 @@ jobs:
             -storepass foxeggs123 \
             -keypass foxeggs123 \
             -dname "CN=FoxEggs Wallet, OU=Development, O=FoxEggs, L=Unknown, ST=Unknown, C=XX"
-
-          # Copy to Android project
           cp foxeggs.keystore android/app/foxeggs.keystore
-
           echo "Keystore generated successfully."
 
 
@@ -565,47 +359,13 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          # Application ID
-          text = re.sub(
-              r'applicationId\s+"[^"]+"',
-              'applicationId "com.foxeggs.wallet"',
-              text,
-              count=1
-          )
+          text = re.sub(r'applicationId\s+"[^"]+"', 'applicationId "com.foxeggs.wallet"', text, count=1)
+          text = re.sub(r'compileSdk\s+[^\n]+', 'compileSdk 35', text, count=1)
+          text = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ["VERSION_CODE"], text, count=1)
+          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "' + os.environ["VERSION_NAME"] + '"', text, count=1)
 
-          # Compile SDK
-          text = re.sub(
-              r'compileSdk\s+[^\n]+',
-              'compileSdk 35',
-              text,
-              count=1
-          )
+          text = re.sub(r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)', '', text, flags=re.S)
 
-          # Version Code
-          text = re.sub(
-              r'versionCode\s+\d+',
-              'versionCode ' + os.environ["VERSION_CODE"],
-              text,
-              count=1
-          )
-
-          # Version Name
-          text = re.sub(
-              r'versionName\s+"[^"]+"',
-              'versionName "' + os.environ["VERSION_NAME"] + '"',
-              text,
-              count=1
-          )
-
-          # Remove existing signingConfigs
-          text = re.sub(
-              r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)',
-              '',
-              text,
-              flags=re.S
-          )
-
-          # Add signingConfigs
           signing_block = '''
               signingConfigs {
                   release {
@@ -621,32 +381,15 @@ jobs:
           '''
 
           if "signingConfigs {" not in text:
-              text = text.replace(
-                  "    buildTypes {",
-                  signing_block + "    buildTypes {",
-                  1
-              )
+              text = text.replace("    buildTypes {", signing_block + "    buildTypes {", 1)
 
-          # Add release signing
           pattern = r'(buildTypes\s*\{\s*release\s*\{)'
           replacement = r'\1\n            signingConfig signingConfigs.release'
 
           if "signingConfig signingConfigs.release" not in text:
-              text = re.sub(
-                  pattern,
-                  replacement,
-                  text,
-                  count=1,
-                  flags=re.S
-              )
+              text = re.sub(pattern, replacement, text, count=1, flags=re.S)
 
-          # Disable minification
-          text = re.sub(
-              r'minifyEnabled\s+\w+',
-              'minifyEnabled false',
-              text,
-              count=1
-          )
+          text = re.sub(r'minifyEnabled\s+\w+', 'minifyEnabled false', text, count=1)
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
@@ -708,12 +451,48 @@ jobs:
 
 
       # =========================================
-      # Upload APK + AAB + Icon
+      # Upload APK + AAB + Icon (Artifact)
       # =========================================
 
-      - name: Upload FoxEggs Release
+      - name: Upload FoxEggs Artifact
         uses: actions/upload-artifact@v6
         with:
           name: FoxEggs-Android-Release
           path: release/
           if-no-files-found: error
+
+
+      # =========================================
+      # 🎯 ایجاد Release خودکار در گیت‌هاب
+      # =========================================
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "🦊 FoxEggs Wallet v1.0.${{ github.run_number }}"
+          body: |
+            ## 🎉 نسخه جدید FoxEggs Wallet
+            
+            ### 📱 فایل‌های قابل دانلود:
+            - **FoxEggs-Wallet.apk** - فایل نصب مستقیم روی اندروید
+            - **FoxEggs-Wallet.aab** - فایل آپلود در گوگل پلی
+            - **icon.png** - آیکون برنامه
+            
+            ### ✅ تغییرات:
+            - نسخه: `1.0.${{ github.run_number }}`
+            - تاریخ ساخت: `$(date +'%Y-%m-%d %H:%M:%S')`
+            
+            ### 📥 نحوه نصب:
+            1. فایل APK رو دانلود کن
+            2. روی گوشی نصب کن (قبلاً نصب از منابع ناشناس رو فعال کن)
+            
+            🦊 لذت ببرید!
+          draft: false
+          prerelease: false
+          files: |
+            release/FoxEggs-Wallet.apk
+            release/FoxEggs-Wallet.aab
+            release/icon.png
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
