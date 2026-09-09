@@ -656,7 +656,7 @@
                 <input type="text" id="nftSendTo" placeholder="آدرس گیرنده" />
             </div>
             <div class="input-group">
-                <input type="number" id="nftId" placeholder="شناسه" step="1" min="0" />
+                <input type="number" id="nftId" placeholder="شناسه NFT" step="1" min="0" />
                 <input type="number" id="nftAmount" placeholder="تعداد" step="1" min="1" value="1" style="max-width:80px;" />
                 <button class="btn btn-success" id="nftSendBtn" onclick="sendNFT()">ارسال</button>
             </div>
@@ -807,7 +807,28 @@
                 'https://avalanche-c-chain-api.ankr.com'
             ],
             chainId: 43114,
-            nft: '0x88ea292916E9b7F6B8FA047b1Dcf99AECAbD6774',
+            // لیست کانترکت‌های NFT با تصاویر مستقیم
+            nftContracts: [{
+                address: '0x88ea292916E9b7F6B8FA047b1Dcf99AECAbD6774',
+                name: 'FoxEggs Collection',
+                directImages: {
+                    1: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_000000006388820a9e81206aff28fc69.png',
+                    2: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_0000000093f881f4932b77859f58ddef.png'
+                },
+                directNames: {
+                    1: 'FoxEggs #1',
+                    2: 'FoxEggs #2'
+                }
+            }, {
+                address: '0x4B1e65f73D8433043Bbe0AB8Cb3f118FAC662F9a',
+                name: 'Guardian Collection',
+                directImages: {
+                    1: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_00000000c00481f4b548d6987c2bf036.png'
+                },
+                directNames: {
+                    1: 'The Guardian of Foxeggs'
+                }
+            }]
         };
 
         let state = {
@@ -815,12 +836,13 @@
             encryptedSeed: null,
             signer: null,
             provider: null,
-            nftContract: null,
             unlocked: false,
             wallets: [],
             activeWalletIndex: -1,
             currentPassword: null,
             pendingSwitchIndex: undefined,
+            selectedNFTContract: null, // آدرس کانترکت انتخاب شده
+            selectedNFTId: null, // شناسه NFT انتخاب شده
         };
 
         let newMnemonic = '';
@@ -859,7 +881,7 @@
                 select: 'انتخاب',
                 selected: 'انتخاب شد',
                 recipient: 'آدرس گیرنده',
-                nftId: 'شناسه',
+                nftId: 'شناسه NFT',
                 nftAmount: 'تعداد',
                 footer: '🦊 FoxEggs - آینده مالی غیرمتمرکز',
                 loginTitle: '🦊 FoxEggs',
@@ -910,6 +932,7 @@
                 logoutPassPlaceholder: 'رمز عبور را وارد کنید',
                 confirmLogout: '✅ تأیید خروج',
                 cancel: '❌ لغو',
+                selectNFTFirst: '❌ ابتدا یک NFT را انتخاب کنید',
             },
             en: {
                 connecting: '🔌 Connecting...',
@@ -939,7 +962,7 @@
                 select: 'Select',
                 selected: 'Selected',
                 recipient: 'Recipient Address',
-                nftId: 'ID',
+                nftId: 'NFT ID',
                 nftAmount: 'Quantity',
                 footer: '🦊 FoxEggs - The Future of Decentralized Finance',
                 loginTitle: '🦊 FoxEggs',
@@ -990,6 +1013,7 @@
                 logoutPassPlaceholder: 'Enter your password',
                 confirmLogout: '✅ Confirm Logout',
                 cancel: '❌ Cancel',
+                selectNFTFirst: '❌ Please select an NFT first',
             }
         };
 
@@ -1098,11 +1122,11 @@
                 const activeLabel = isActive ? ` 🔵 ${t('active')}` : '';
 
                 html += `
-                        <div class="wallet-item ${isActive ? 'active' : ''}" onclick="switchWallet(${index})">
-                            <span class="wallet-addr">${shortAddr}${activeLabel}</span>
-                            <span class="wallet-delete" onclick="event.stopPropagation(); deleteWallet(${index})">✕</span>
-                        </div>
-                    `;
+                            <div class="wallet-item ${isActive ? 'active' : ''}" onclick="switchWallet(${index})">
+                                <span class="wallet-addr">${shortAddr}${activeLabel}</span>
+                                <span class="wallet-delete" onclick="event.stopPropagation(); deleteWallet(${index})">✕</span>
+                            </div>
+                        `;
             });
 
             container.innerHTML = html;
@@ -1131,6 +1155,8 @@
                     state.encryptedSeed = wallet.encryptedSeed;
                     state.activeWalletIndex = index;
                     state.signer = walletInstance.connect(state.provider);
+                    state.selectedNFTContract = null;
+                    state.selectedNFTId = null;
 
                     document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(wallet.address);
                     document.getElementById('walletDropdown').classList.remove('show');
@@ -1169,6 +1195,8 @@
                 state.signer = null;
                 state.unlocked = false;
                 state.currentPassword = null;
+                state.selectedNFTContract = null;
+                state.selectedNFTId = null;
                 document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
                 document.getElementById('avaxBalance').textContent = '0';
                 document.getElementById('nftList').innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
@@ -1270,6 +1298,8 @@
                     state.signer = wallet.connect(state.provider);
                     state.currentPassword = pass;
                     state.unlocked = true;
+                    state.selectedNFTContract = null;
+                    state.selectedNFTId = null;
                     document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                     document.getElementById('addWalletModal').classList.add('closed');
 
@@ -1301,6 +1331,8 @@
                     state.signer = wallet.connect(state.provider);
                     state.currentPassword = pass;
                     state.unlocked = true;
+                    state.selectedNFTContract = null;
+                    state.selectedNFTId = null;
                     document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                     document.getElementById('addWalletModal').classList.add('closed');
 
@@ -1343,7 +1375,7 @@
 
             try {
                 decrypt(state.encryptedSeed, pass);
-                
+
                 state.address = null;
                 state.encryptedSeed = null;
                 state.signer = null;
@@ -1351,6 +1383,8 @@
                 state.activeWalletIndex = -1;
                 state.currentPassword = null;
                 state.pendingSwitchIndex = undefined;
+                state.selectedNFTContract = null;
+                state.selectedNFTId = null;
 
                 document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
                 document.getElementById('avaxBalance').textContent = '0';
@@ -1368,7 +1402,7 @@
                 document.getElementById('unlockSection').classList.add('hidden');
                 document.getElementById('createSection').classList.add('hidden');
                 document.getElementById('importSection').classList.add('hidden');
-                
+
                 document.getElementById('logoutPass').value = '';
             } catch (e) {
                 toast(t('passWrong'), 'error');
@@ -1420,6 +1454,232 @@
         }
 
         // ========================================
+        // SELECT NFT
+        // ========================================
+        function selectNFT(contract, id, name) {
+            state.selectedNFTContract = contract;
+            state.selectedNFTId = id;
+            document.getElementById('nftId').value = id;
+            toast('✅ ' + name + ' ' + t('selected'));
+        }
+
+        // ========================================
+        // LOAD NFT DATA FROM ALL CONTRACTS
+        // ========================================
+        async function loadAllNFTs() {
+            if (!state.address) {
+                status(t('notConnected'), 'error');
+                return;
+            }
+
+            try {
+                status('🔄 در حال دریافت NFT ها...', 'info');
+
+                let allNFTs = [];
+
+                // برای هر کانترکت
+                for (const contractInfo of CONFIG.nftContracts) {
+                    const contract = new ethers.Contract(
+                        contractInfo.address,
+                        ['function balanceOf(address, uint) view returns (uint)'],
+                        state.provider
+                    );
+
+                    // چک کردن 20 تا NFT اول
+                    for (let id = 1; id <= 20; id++) {
+                        try {
+                            const balance = await contract.balanceOf(state.address, id);
+                            if (balance.gt(0)) {
+                                // بررسی تصویر مستقیم
+                                let img = null;
+                                let name = `NFT #${id}`;
+
+                                if (contractInfo.directImages && contractInfo.directImages[id]) {
+                                    img = contractInfo.directImages[id];
+                                }
+                                if (contractInfo.directNames && contractInfo.directNames[id]) {
+                                    name = contractInfo.directNames[id];
+                                }
+
+                                allNFTs.push({
+                                    id: id,
+                                    balance: balance.toNumber(),
+                                    image: img,
+                                    name: name,
+                                    contract: contractInfo.address,
+                                    contractName: contractInfo.name
+                                });
+                            }
+                        } catch (e) {
+                            // خطا رو نادیده بگیر
+                        }
+                    }
+                }
+
+                renderNFTs(allNFTs);
+                status('✅ NFT ها بروزرسانی شدند', 'success');
+
+            } catch (e) {
+                console.error('❌ خطا در دریافت NFT ها:', e);
+                status('❌ خطا: ' + e.message, 'error');
+            }
+        }
+
+        // ========================================
+        // RENDER NFTS
+        // ========================================
+        function renderNFTs(items) {
+            const container = document.getElementById('nftList');
+
+            if (items.length === 0) {
+                container.innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
+                return;
+            }
+
+            let html = '<div class="nft-grid">';
+
+            for (const item of items) {
+                let imageHtml = item.image ?
+                    `<img src="${item.image}" alt="${item.name}" class="nft-image" onerror="this.className='nft-image placeholder'; this.innerHTML='🎨'" />` :
+                    `<div class="nft-image placeholder">🎨</div>`;
+
+                html += `
+                            <div class="nft-card" onclick="selectNFT('${item.contract}', ${item.id}, '${item.name}')">
+                                ${imageHtml}
+                                <div class="nft-name">${item.name}</div>
+                                <span class="nft-id">ID: ${item.id}</span>
+                                <span class="nft-balance">× ${item.balance}</span>
+                                <button class="select-btn" onclick="event.stopPropagation(); selectNFT('${item.contract}', ${item.id}, '${item.name}')">${t('select')}</button>
+                            </div>
+                        `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ========================================
+        // REFRESH
+        // ========================================
+        async function refreshAll() {
+            if (!state.address) {
+                status(t('notConnected'), 'error');
+                return;
+            }
+
+            try {
+                // دریافت موجودی AVAX
+                const balance = await state.provider.getBalance(state.address);
+                document.getElementById('avaxBalance').textContent = parseFloat(ethers.utils.formatEther(balance)).toFixed(
+                4);
+
+                // دریافت NFT ها از همه کانترکت‌ها
+                await loadAllNFTs();
+            } catch (e) {
+                status(t('error') + e.message, 'error');
+            }
+        }
+
+        // ========================================
+        // SEND NFT - ساده شده
+        // ========================================
+        async function sendNFT() {
+            if (!state.signer) {
+                toast(t('error') + 'کیف پول باز نیست', 'error');
+                return;
+            }
+
+            const to = document.getElementById('nftSendTo').value.trim();
+            const id = parseInt(document.getElementById('nftId').value);
+            const amount = parseInt(document.getElementById('nftAmount').value) || 1;
+
+            // آدرس کانترکت از state گرفته میشه (وقتی کاربر روی NFT کلیک کرده)
+            const contractAddress = state.selectedNFTContract;
+
+            if (!to || !ethers.utils.isAddress(to)) {
+                toast(t('invalidAddress'), 'error');
+                return;
+            }
+            if (!contractAddress) {
+                toast(t('selectNFTFirst'), 'error');
+                return;
+            }
+            if (!id || id <= 0) {
+                toast(t('invalidNFT'), 'error');
+                return;
+            }
+
+            try {
+                document.getElementById('nftSendBtn').disabled = true;
+                status('🔄 در حال ارسال...', 'info');
+
+                const contract = new ethers.Contract(
+                    contractAddress,
+                    ['function safeTransferFrom(address, address, uint, uint, bytes)'],
+                    state.signer
+                );
+
+                const tx = await contract.safeTransferFrom(
+                    state.address, to, id, amount, '0x'
+                );
+                await tx.wait();
+
+                toast(t('nftSent'), 'success');
+                status(t('nftConfirmed'), 'success');
+
+                // پاک کردن فیلدها
+                document.getElementById('nftSendTo').value = '';
+                document.getElementById('nftId').value = '';
+                document.getElementById('nftAmount').value = '1';
+                state.selectedNFTContract = null;
+                state.selectedNFTId = null;
+
+                await refreshAll();
+            } catch (e) {
+                toast(t('error') + e.message, 'error');
+                status(t('error'), 'error');
+            } finally {
+                document.getElementById('nftSendBtn').disabled = false;
+            }
+        }
+
+        // ========================================
+        // SEED
+        // ========================================
+        function showSeed() {
+            if (!state.address) { toast(t('notConnected'), 'error'); return; }
+            document.getElementById('seedModal').classList.remove('closed');
+            document.getElementById('seedViewResult').classList.add('hidden');
+            document.getElementById('seedViewResult').textContent = '';
+            document.getElementById('seedViewPass').value = '';
+        }
+
+        function viewSeed() {
+            const pass = document.getElementById('seedViewPass').value;
+            if (!pass) { toast(t('enterPassword'), 'error'); return; }
+
+            try {
+                const seed = decrypt(state.encryptedSeed, pass);
+                document.getElementById('seedViewResult').textContent = seed;
+                document.getElementById('seedViewResult').classList.remove('hidden');
+                toast(t('seedShown'));
+            } catch (e) {
+                toast(t('passWrong'), 'error');
+            }
+        }
+
+        function closeSeedModal() {
+            document.getElementById('seedModal').classList.add('closed');
+        }
+
+        function copyAddress() {
+            if (state.address) {
+                navigator.clipboard.writeText(state.address);
+                toast(t('copied'));
+            }
+        }
+
+        // ========================================
         // INIT
         // ========================================
         async function init() {
@@ -1449,14 +1709,6 @@
                 }
 
                 state.provider = provider;
-
-                const nftABI = [
-                    'function balanceOf(address, uint) view returns (uint)',
-                    'function safeTransferFrom(address, address, uint, uint, bytes)',
-                    'function uri(uint) view returns (string)',
-                ];
-                state.nftContract = new ethers.Contract(CONFIG.nft, nftABI, provider);
-
                 loadWallets();
 
                 if (state.wallets.length > 0) {
@@ -1549,6 +1801,8 @@
                     state.signer = wallet.connect(state.provider);
                     state.currentPassword = pass;
                     state.unlocked = true;
+                    state.selectedNFTContract = null;
+                    state.selectedNFTId = null;
                     document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                     document.getElementById('loginModal').classList.add('closed');
 
@@ -1584,6 +1838,8 @@
                     state.signer = wallet.connect(state.provider);
                     state.currentPassword = pass;
                     state.unlocked = true;
+                    state.selectedNFTContract = null;
+                    state.selectedNFTId = null;
                     document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                     document.getElementById('loginModal').classList.add('closed');
 
@@ -1629,238 +1885,6 @@
                 }
             } catch (e) {
                 toast(t('passWrong'), 'error');
-            }
-        }
-
-        // ========================================
-        // REFRESH
-        // ========================================
-        async function refreshAll() {
-            if (!state.address) {
-                status(t('notConnected'), 'error');
-                return;
-            }
-
-            try {
-                status(t('refreshing'), 'info');
-
-                try {
-                    const avax = await state.provider.getBalance(state.address);
-                    document.getElementById('avaxBalance').textContent = parseFloat(ethers.utils.formatEther(avax)).toFixed(
-                    4);
-                } catch (e) {
-                    document.getElementById('avaxBalance').textContent = '0';
-                }
-
-                await loadNFTs();
-
-                status(t('updated'), 'success');
-            } catch (e) {
-                status(t('error') + e.message, 'error');
-            }
-        }
-
-        // ========================================
-        // LOAD NFTS
-        // ========================================
-        async function loadNFTs() {
-            const container = document.getElementById('nftList');
-
-            if (!state.address) {
-                container.innerHTML = `<div class="empty-state">${t('notConnected')}</div>`;
-                return;
-            }
-
-            try {
-                container.innerHTML = `<div class="empty-state">${t('loadingNFT')}</div>`;
-
-                const nft = state.nftContract;
-                const addr = state.address;
-                let items = [];
-
-                for (let id = 1; id <= 20; id++) {
-                    try {
-                        const bal = await nft.balanceOf(addr, id);
-                        if (bal.gt(0)) {
-                            let uri = '';
-                            try { uri = await nft.uri(id); } catch (e) {}
-                            items.push({ id, balance: bal.toNumber(), uri });
-                        }
-                    } catch (e) {}
-                }
-
-                if (items.length === 0) {
-                    container.innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
-                    return;
-                }
-
-                const DIRECT_IMAGES = {
-                    1: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_000000006388820a9e81206aff28fc69.png',
-                    2: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_0000000093f881f4932b77859f58ddef.png'
-                };
-
-                let html = '<div class="nft-grid">';
-
-                for (const item of items) {
-                    let img = '';
-                    let name = `NFT #${item.id}`;
-                    let imageLoaded = false;
-                    let isPlaceholder = false;
-
-                    if (DIRECT_IMAGES[item.id]) {
-                        img = DIRECT_IMAGES[item.id];
-                        imageLoaded = true;
-                        name = `FoxEggs #${item.id}`;
-                    } else {
-                        isPlaceholder = true;
-                        if (item.uri) {
-                            try {
-                                let u = item.uri;
-
-                                if (u.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-                                    img = u;
-                                    imageLoaded = true;
-                                    isPlaceholder = false;
-                                } else {
-                                    if (u.startsWith('ipfs://')) {
-                                        u = u.replace('ipfs://', 'https://ipfs.io/ipfs/');
-                                    }
-                                    if (u.startsWith('ar://')) {
-                                        u = u.replace('ar://', 'https://arweave.net/');
-                                    }
-
-                                    const response = await fetch(u, {
-                                        headers: { 'Accept': 'application/json' }
-                                    });
-
-                                    if (response.ok) {
-                                        const meta = await response.json();
-                                        let imageUrl = meta.image || meta.image_url || meta.img || meta.thumbnail;
-
-                                        if (imageUrl) {
-                                            if (imageUrl.startsWith('ipfs://')) {
-                                                imageUrl = imageUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-                                            }
-                                            if (imageUrl.startsWith('ar://')) {
-                                                imageUrl = imageUrl.replace('ar://', 'https://arweave.net/');
-                                            }
-                                            img = imageUrl;
-                                            imageLoaded = true;
-                                            isPlaceholder = false;
-                                        }
-
-                                        if (meta.name) name = meta.name;
-                                    }
-                                }
-                            } catch (e) {
-                                console.log('Error loading metadata for NFT #' + item.id, e);
-                            }
-                        }
-                    }
-
-                    let imageHtml = '';
-                    if (imageLoaded && img) {
-                        imageHtml =
-                            `<img src="${img}" 
-                                         alt="${name}"
-                                         class="nft-image"
-                                         onerror="this.className='nft-image placeholder'; this.innerHTML='🎨'" />`;
-                    } else {
-                        imageHtml = `<div class="nft-image placeholder">🎨</div>`;
-                    }
-
-                    const selectText = t('select');
-                    html += `
-                            <div class="nft-card" onclick="document.getElementById('nftId').value=${item.id}; toast('✅ NFT #${item.id} ${t('selected')}')">
-                                ${imageHtml}
-                                <div class="nft-name">${name}</div>
-                                <span class="nft-id">ID: ${item.id}</span>
-                                <span class="nft-balance">× ${item.balance}</span>
-                                <button class="select-btn" onclick="event.stopPropagation(); document.getElementById('nftId').value=${item.id}; toast('✅ NFT #${item.id} ${t('selected')}')">${selectText}</button>
-                            </div>
-                        `;
-                }
-
-                html += '</div>';
-                container.innerHTML = html;
-
-            } catch (e) {
-                console.error('Error loading NFTs:', e);
-                container.innerHTML = `<div class="empty-state">${t('nftError')}</div>`;
-            }
-        }
-
-        // ========================================
-        // SEND NFT
-        // ========================================
-        async function sendNFT() {
-            if (!state.signer) { toast(t('error') + 'کیف پول باز نیست', 'error'); return; }
-
-            const to = document.getElementById('nftSendTo').value.trim();
-            const id = parseInt(document.getElementById('nftId').value);
-            const amount = parseInt(document.getElementById('nftAmount').value) || 1;
-
-            if (!to || !ethers.utils.isAddress(to)) { toast(t('invalidAddress'), 'error'); return; }
-            if (!id || id <= 0) { toast(t('invalidNFT'), 'error'); return; }
-
-            try {
-                document.getElementById('nftSendBtn').disabled = true;
-                status(t('refreshing'), 'info');
-
-                const contract = state.nftContract.connect(state.signer);
-                const tx = await contract.safeTransferFrom(
-                    state.address, to, id, amount, '0x'
-                );
-                await tx.wait();
-
-                toast(t('nftSent'), 'success');
-                status(t('nftConfirmed'), 'success');
-
-                document.getElementById('nftSendTo').value = '';
-                document.getElementById('nftId').value = '';
-                document.getElementById('nftAmount').value = '1';
-                await refreshAll();
-            } catch (e) {
-                toast(t('error') + e.message, 'error');
-                status(t('error'), 'error');
-            } finally {
-                document.getElementById('nftSendBtn').disabled = false;
-            }
-        }
-
-        // ========================================
-        // SEED
-        // ========================================
-        function showSeed() {
-            if (!state.address) { toast(t('notConnected'), 'error'); return; }
-            document.getElementById('seedModal').classList.remove('closed');
-            document.getElementById('seedViewResult').classList.add('hidden');
-            document.getElementById('seedViewResult').textContent = '';
-            document.getElementById('seedViewPass').value = '';
-        }
-
-        function viewSeed() {
-            const pass = document.getElementById('seedViewPass').value;
-            if (!pass) { toast(t('enterPassword'), 'error'); return; }
-
-            try {
-                const seed = decrypt(state.encryptedSeed, pass);
-                document.getElementById('seedViewResult').textContent = seed;
-                document.getElementById('seedViewResult').classList.remove('hidden');
-                toast(t('seedShown'));
-            } catch (e) {
-                toast(t('passWrong'), 'error');
-            }
-        }
-
-        function closeSeedModal() {
-            document.getElementById('seedModal').classList.add('closed');
-        }
-
-        function copyAddress() {
-            if (state.address) {
-                navigator.clipboard.writeText(state.address);
-                toast(t('copied'));
             }
         }
 
@@ -1943,4 +1967,4 @@
     </script>
 
 </body>
-    </html>
+                    </html>
