@@ -2,15 +2,19 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>FoxEggs Wallet</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="capacitor.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0b0e1a; color: #e8e8e8; min-height: 100vh;
-            display: flex; justify-content: center; align-items: flex-start; padding: 12px;
+            display: flex; justify-content: center; align-items: flex-start;
+            padding: 12px;
+            padding-top: env(safe-area-inset-top, 12px);
+            padding-bottom: env(safe-area-inset-bottom, 12px);
         }
         .app { width: 100%; max-width: 480px; margin: 0 auto; }
         .card {
@@ -156,14 +160,114 @@
         }
         .nft-card .select-btn:active { transform: scale(0.95); }
         .empty-state { text-align: center; color: #4a5a6a; padding: 20px 0; font-size: 0.8rem; }
+
+        /* Transaction History */
+        .tx-list { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 10px 0; }
+        .tx-item {
+            background: #0f1428; border-radius: 14px; padding: 12px;
+            border: 1px solid #1a2a3a; border-right: 3px solid #4ade80;
+            display: flex; gap: 12px; align-items: center;
+            transition: 0.2s; cursor: pointer;
+        }
+        .tx-item:active { transform: scale(0.98); }
+        .tx-item .tx-image {
+            width: 50px; height: 50px; border-radius: 10px;
+            object-fit: cover; background: #0a0f20; flex-shrink: 0;
+        }
+        .tx-item .tx-image.placeholder {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; background: #0a0f20; color: #4a5a6a;
+        }
+        .tx-item .tx-info { flex: 1; min-width: 0; }
+        .tx-item .tx-title { font-size: 0.8rem; color: #fff; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tx-item .tx-sub { font-size: 0.65rem; color: #8a9bb5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tx-item .tx-date { font-size: 0.6rem; color: #6a7a8a; margin-top: 4px; }
+
+        /* Success Modal */
+        .success-modal {
+            background: linear-gradient(160deg, #151530, #1a1a3a);
+            border-radius: 28px; padding: 24px 20px;
+            max-width: 440px; width: 100%; max-height: 92vh; overflow-y: auto;
+            border: 1px solid #2a2a50; animation: successPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes successPop {
+            0% { transform: scale(0.6); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .success-icon {
+            width: 80px; height: 80px; border-radius: 50%;
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.5rem; margin: 0 auto 16px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 0 25px rgba(74, 222, 128, 0); }
+        }
+        .success-title { text-align: center; font-size: 1.3rem; color: #4ade80; margin-bottom: 8px; font-weight: 700; }
+        .success-sub { text-align: center; font-size: 0.75rem; color: #8a9bb5; margin-bottom: 20px; }
+        .detail-nft-image {
+            width: 100%; max-width: 180px; aspect-ratio: 1/1;
+            border-radius: 20px; object-fit: cover; margin: 0 auto 16px;
+            display: block; background: #0a0f20;
+            border: 3px solid #4ade80;
+            box-shadow: 0 0 40px rgba(74, 222, 128, 0.4);
+        }
+        .detail-nft-image.placeholder {
+            display: flex; align-items: center; justify-content: center;
+            font-size: 4rem;
+        }
+        .detail-nft-name {
+            text-align: center; font-size: 1.1rem; color: #fff;
+            font-weight: 600; margin-bottom: 6px;
+        }
+        .detail-nft-collection {
+            text-align: center; font-size: 0.7rem; color: #8a9bb5;
+            margin-bottom: 20px;
+        }
+        .detail-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 12px; background: #0a0f20; border-radius: 12px;
+            margin-bottom: 8px; font-size: 0.72rem; gap: 8px;
+        }
+        .detail-row .detail-label { color: #8a9bb5; flex-shrink: 0; }
+        .detail-row .detail-value {
+            color: #fff; font-family: monospace; text-align: left;
+            direction: ltr; max-width: 65%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .detail-row .detail-value.green { color: #4ade80; }
+        .detail-row .detail-value.red { color: #e94560; }
+        .detail-row .detail-value.gold { color: #ffd700; }
+        .detail-row .detail-value.white { color: #fff; }
+        .detail-row .detail-value.purple { color: #a78bfa; }
+
+        /* Confirmation Modal */
+        .confirm-modal {
+            background: linear-gradient(160deg, #151530, #1a1a3a);
+            border-radius: 28px; padding: 24px 20px;
+            max-width: 440px; width: 100%; max-height: 92vh; overflow-y: auto;
+            border: 1px solid #2a2a50; animation: fadeIn 0.3s;
+        }
+        .confirm-icon {
+            width: 70px; height: 70px; border-radius: 50%;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; margin: 0 auto 16px;
+        }
+        .confirm-title { text-align: center; font-size: 1.15rem; color: #fbbf24; margin-bottom: 8px; font-weight: 700; }
+        .confirm-sub { text-align: center; font-size: 0.75rem; color: #8a9bb5; margin-bottom: 20px; }
+
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85); display: flex;
+            background: rgba(0, 0, 0, 0.9); display: flex;
             justify-content: center; align-items: center; z-index: 1000;
             padding: 16px; animation: fadeIn 0.2s ease;
+            backdrop-filter: blur(8px);
         }
         .modal-overlay.closed { display: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .modal {
             background: #151530; border-radius: 28px; padding: 24px 20px;
             max-width: 440px; width: 100%; max-height: 90vh; overflow-y: auto;
@@ -206,13 +310,14 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #0a0f20; }
         ::-webkit-scrollbar-thumb { background: #2a3a5a; border-radius: 10px; }
+
         @media (max-width: 420px) {
             .card { padding: 14px 12px; }
             .balance-item .value { font-size: 1.1rem; }
             .btn { font-size: 0.7rem; padding: 8px 12px; }
             .input-group input { font-size: 0.7rem; padding: 8px 12px; }
             .header .logo h1 { font-size: 1rem; }
-            .modal { padding: 18px 14px; }
+            .modal, .success-modal, .confirm-modal { padding: 18px 14px; }
             .wallet-dropdown { right: -40px; min-width: 250px; }
         }
     </style>
@@ -268,8 +373,19 @@
         <div class="input-group">
             <input type="number" id="nftId" placeholder="شناسه NFT" step="1" min="0" />
             <input type="number" id="nftAmount" placeholder="تعداد" step="1" min="1" value="1" style="max-width:80px;" />
-            <button class="btn btn-success" id="nftSendBtn" onclick="sendNFT()">ارسال</button>
+            <button class="btn btn-success" id="nftSendBtn" onclick="startSendNFT()">ارسال</button>
         </div>
+
+        <div class="section-title" id="txHistoryLabel">📜 تاریخچه تراکنش ها</div>
+        <div id="txHistory">
+            <div class="empty-state">هنوز تراکنشی ثبت نشده</div>
+        </div>
+
+        <div class="section-title" id="biometricLabel">🔐 امنیت بیومتریک</div>
+        <button class="btn btn-outline btn-full" id="biometricBtn" onclick="toggleBiometric()">
+            <span id="biometricIcon">👆</span>
+            <span id="biometricText">فعال‌سازی ورود با اثر انگشت</span>
+        </button>
 
         <div class="section-title" id="managementLabel">🔐 مدیریت</div>
         <div class="btn-group">
@@ -278,6 +394,138 @@
         </div>
 
         <div class="footer-text" id="footerText">🦊 FoxEggs - آینده مالی غیرمتمرکز</div>
+    </div>
+
+    <!-- CONFIRMATION MODAL -->
+    <div class="modal-overlay closed" id="confirmTxModal">
+        <div class="confirm-modal">
+            <div class="confirm-icon">⚠️</div>
+            <div class="confirm-title">تأیید ارسال NFT</div>
+            <div class="confirm-sub">برای تأیید ارسال، احراز هویت کنید</div>
+            
+            <div class="detail-row">
+                <span class="detail-label">NFT:</span>
+                <span class="detail-value white" id="confirmNFTName">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">تعداد:</span>
+                <span class="detail-value green" id="confirmAmount">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">به:</span>
+                <span class="detail-value" id="confirmTo">-</span>
+            </div>
+            
+            <div style="margin-top: 16px;">
+                <button class="btn btn-success btn-full" id="confirmBiometricBtn" onclick="confirmWithBiometric()" style="display:none;">
+                    👆 تأیید با اثر انگشت
+                </button>
+                <div class="input-group" style="margin-top: 8px;">
+                    <input type="password" id="confirmPass" placeholder="رمز عبور" />
+                </div>
+                <button class="btn btn-success btn-full" onclick="confirmWithPassword()">
+                    ✅ تأیید با رمز
+                </button>
+                <button class="btn btn-outline btn-full" onclick="closeConfirmModal()" style="margin-top:6px;">
+                    ❌ لغو
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS MODAL -->
+    <div class="modal-overlay closed" id="successModal">
+        <div class="success-modal">
+            <div class="success-icon">✓</div>
+            <div class="success-title">ارسال موفق!</div>
+            <div class="success-sub">NFT با موفقیت ارسال شد</div>
+            
+            <img id="successNFTImage" class="detail-nft-image" src="" alt="NFT" />
+            <div id="successNFTImagePlaceholder" class="detail-nft-image placeholder hidden">🎨</div>
+            
+            <div class="detail-nft-name" id="successNFTName">-</div>
+            <div class="detail-nft-collection" id="successCollection">-</div>
+            
+            <div class="detail-row">
+                <span class="detail-label">🆔 شناسه:</span>
+                <span class="detail-value white" id="successTokenId">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📦 تعداد ارسالی:</span>
+                <span class="detail-value green" id="successAmount">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📤 از:</span>
+                <span class="detail-value red" id="successFrom">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📥 به:</span>
+                <span class="detail-value green" id="successTo">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⛽ کارمزد:</span>
+                <span class="detail-value gold" id="successGas">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🕐 زمان:</span>
+                <span class="detail-value white" id="successTime">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🔗 هش:</span>
+                <span class="detail-value purple" id="successHash">-</span>
+            </div>
+            
+            <button class="btn btn-success btn-full" onclick="closeSuccessModal()" style="margin-top:16px;">
+                ✅ تأیید
+            </button>
+        </div>
+    </div>
+
+    <!-- TX DETAIL MODAL (from history) -->
+    <div class="modal-overlay closed" id="txDetailModal">
+        <div class="success-modal">
+            <div class="success-title" style="color:#4ade80;">📜 جزئیات تراکنش</div>
+            <div class="success-sub">اطلاعات کامل تراکنش شما</div>
+            
+            <img id="detailNFTImage" class="detail-nft-image" src="" alt="NFT" style="border-color: #e94560;" />
+            <div id="detailNFTImagePlaceholder" class="detail-nft-image placeholder hidden">🎨</div>
+            
+            <div class="detail-nft-name" id="detailNFTName">-</div>
+            <div class="detail-nft-collection" id="detailCollection">-</div>
+            
+            <div class="detail-row">
+                <span class="detail-label">🆔 شناسه:</span>
+                <span class="detail-value white" id="detailTokenId">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📦 تعداد:</span>
+                <span class="detail-value green" id="detailAmount">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📤 از:</span>
+                <span class="detail-value red" id="detailFrom">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📥 به:</span>
+                <span class="detail-value green" id="detailTo">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⛽ کارمزد:</span>
+                <span class="detail-value gold" id="detailGas">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🕐 زمان:</span>
+                <span class="detail-value white" id="detailTime">-</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">🔗 هش:</span>
+                <span class="detail-value purple" id="detailHash">-</span>
+            </div>
+            
+            <button class="btn btn-outline btn-full" onclick="closeTxDetailModal()" style="margin-top:16px;">
+                ❌ بستن
+            </button>
+        </div>
     </div>
 
     <!-- ADD WALLET MODAL -->
@@ -342,6 +590,9 @@
             <div id="unlockSection" class="hidden">
                 <div class="input-group"><input type="password" id="unlockPass" placeholder="رمز عبور خود را وارد کنید" /></div>
                 <button class="btn btn-success btn-full" onclick="unlockWallet()">🔓 باز کردن</button>
+                <button class="btn btn-outline btn-full" id="fingerprintUnlockBtn" onclick="tryBiometricUnlock()" style="margin-top:6px; display:none;">
+                    👆 ورود با اثر انگشت
+                </button>
             </div>
         </div>
     </div>
@@ -374,6 +625,74 @@
 
 <script>
     // ========================================
+    // BIOMETRIC HELPER (Works in APK + Telegram Mini App fallback)
+    // ========================================
+    const isNative = typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    const isTelegram = typeof window.Telegram !== 'undefined' && window.Telegram.WebApp;
+
+    const BiometricAuth = {
+        async checkAvailability() {
+            if (!isNative) return { available: false, type: 'web' };
+            try {
+                const { NativeBiometric } = window.Capacitor.Plugins;
+                const result = await NativeBiometric.isAvailable();
+                return { available: result.isAvailable, type: result.biometryType };
+            } catch (e) {
+                return { available: false, type: 'error' };
+            }
+        },
+        
+        async verify(title = 'ورود به FoxEggs') {
+            if (!isNative) return { success: false };
+            try {
+                const { NativeBiometric } = window.Capacitor.Plugins;
+                await NativeBiometric.verifyIdentity({
+                    reason: title,
+                    title: 'احراز هویت',
+                    subtitle: 'برای تأیید از اثر انگشت استفاده کنید',
+                    description: 'اثر انگشت خود را روی سنسور بگذارید',
+                    maxAttempts: 3,
+                    useFallback: true,
+                    fallbackTitle: 'استفاده از رمز',
+                });
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        },
+        
+        async saveCredentials(username, password) {
+            if (!isNative) return false;
+            try {
+                const { NativeBiometric } = window.Capacitor.Plugins;
+                await NativeBiometric.setCredentials({
+                    username: username,
+                    password: password,
+                    server: 'foxeggs.wallet'
+                });
+                return true;
+            } catch (e) { return false; }
+        },
+        
+        async getCredentials() {
+            if (!isNative) return null;
+            try {
+                const { NativeBiometric } = window.Capacitor.Plugins;
+                return await NativeBiometric.getCredentials({ server: 'foxeggs.wallet' });
+            } catch (e) { return null; }
+        },
+        
+        async deleteCredentials() {
+            if (!isNative) return false;
+            try {
+                const { NativeBiometric } = window.Capacitor.Plugins;
+                await NativeBiometric.deleteCredentials({ server: 'foxeggs.wallet' });
+                return true;
+            } catch (e) { return false; }
+        }
+    };
+
+    // ========================================
     // CONFIG
     // ========================================
     const CONFIG = {
@@ -384,6 +703,7 @@
             'https://avalanche-c-chain-api.ankr.com'
         ],
         chainId: 43114,
+        explorer: 'https://snowtrace.io',
         nftContracts: [
             {
                 address: '0x4B1e65f73D8433043Bbe0AB8Cb3f118FAC662F9a',
@@ -410,11 +730,16 @@
         pendingSwitchIndex: undefined,
         selectedNFTContract: null,
         selectedNFTId: null,
+        selectedNFTName: null,
+        selectedNFTImage: null,
+        selectedNFTCollection: null,
+        pendingTx: null,
     };
 
     let newMnemonic = '';
     let currentLang = 'fa';
     let addNewMnemonic = '';
+    let biometricAvailable = false;
 
     // ========================================
     // TRANSLATIONS
@@ -424,17 +749,14 @@
             connecting: '🔌 در حال اتصال...', connected: '✅ متصل به Avalanche',
             locked: '🔒 کیف پول قفل است، رمز را وارد کنید', welcome: '👋 خوش آمدید! کیف پول خود را بسازید',
             walletCreated: '✅ کیف پول ساخته شد!', walletImported: '✅ کیف پول وارد شد!',
-            walletUnlocked: '✅ کیف پول باز شد!', refreshing: '🔄 در حال بروزرسانی...',
-            updated: '✅ بروزرسانی شد', error: '❌ خطا: ', notConnected: '❌ کیف پول متصل نیست',
+            walletUnlocked: '✅ کیف پول باز شد!', error: '❌ خطا: ', notConnected: '❌ کیف پول متصل نیست',
             loggedOut: '👋 خارج شدید', notConnectedAddr: '📋 کیف پول متصل نیست',
             copy: 'کپی', gas: '⛽ موجودی AVAX (کارمزد)', sendNFT: '📤 انتقال NFT',
             management: '🔐 مدیریت', send: 'ارسال', seed: '🔑 ۱۲ کلمه', logout: '🚪 خروج',
             nfts: '🖼️ NFT ها', noNFT: '🎨 هیچ NFT در این کیف پول نیست',
-            loadingNFT: '🔄 در حال بارگذاری NFT...', nftError: '❌ خطا در بارگذاری NFT',
             select: 'انتخاب', selected: 'انتخاب شد', recipient: 'آدرس گیرنده',
             nftId: 'شناسه NFT', nftAmount: 'تعداد',
             footer: '🦊 FoxEggs - آینده مالی غیرمتمرکز',
-            loginTitle: '🦊 FoxEggs', loginDesc: 'به کیف پول خود خوش آمدید',
             createWallet: '🆕 ساخت کیف پول جدید', importWallet: '📥 وارد کردن کیف پول',
             createWarning: '⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!',
             generate: '🔄 تولید کلمات', password: 'رمز عبور (حداقل ۶ کاراکتر)',
@@ -446,61 +768,89 @@
             seedGenerated: '✅ ۱۲ کلمه ساخته شد', generateFirst: 'ابتدا کلمات را تولید کنید',
             passMin: 'رمز باید حداقل ۶ کاراکتر باشد', passMatch: 'رمزها مطابقت ندارند',
             passWrong: '❌ رمز اشتباه است', invalidAddress: 'آدرس معتبر نیست',
-            invalidNFT: 'شناسه NFT معتبر وارد کنید', txSuccess: '✅ تراکنش موفق!',
-            txConfirmed: '✅ تراکنش تأیید شد', nftSent: '✅ NFT ارسال شد!',
-            nftConfirmed: '✅ NFT تأیید شد', logoutConfirm: 'از خروج مطمئن هستید؟',
-            seedShown: '✅ کلمات نمایش داده شد', importWarning: '⚠️ ۱۲ کلمه کیف پول خود را وارد کنید',
-            importSeedPlaceholder: '۱۲ کلمه را وارد کنید...', addWalletTitle: '➕ افزودن کیف پول جدید',
-            addWalletDesc: 'یک کیف پول جدید بسازید یا وارد کنید', walletAdded: '✅ کیف پول جدید اضافه شد!',
-            switchWallet: '🔄 سوئیچ به کیف پول', walletDeleted: '🗑️ کیف پول حذف شد',
-            deleteConfirm: 'از حذف این کیف پول مطمئن هستید؟', noWallets: 'هیچ کیف پولی وجود ندارد',
-            active: 'فعال', logoutTitle: '🚪 خروج از کیف پول',
-            logoutDesc: 'برای خروج، رمز عبور خود را وارد کنید', logoutPassPlaceholder: 'رمز عبور را وارد کنید',
-            confirmLogout: '✅ تأیید خروج', cancel: '❌ لغو', selectNFTFirst: '❌ ابتدا یک NFT را انتخاب کنید',
+            invalidNFT: 'شناسه NFT معتبر وارد کنید', nftSent: '✅ NFT ارسال شد!',
+            noWallet: '❌ کیف پول متصل نیست',
+            selectNFTFirst: '❌ ابتدا یک NFT را انتخاب کنید',
+            txHistory: '📜 تاریخچه تراکنش ها',
+            noTx: 'هنوز تراکنشی ثبت نشده',
+            biometricLabel: '🔐 امنیت بیومتریک',
+            biometricEnable: 'فعال‌سازی اثر انگشت',
+            biometricDisable: 'غیرفعال کردن اثر انگشت',
+            biometricEnabled: '✅ اثر انگشت فعال شد',
+            biometricDisabled: '🔓 اثر انگشت غیرفعال شد',
+            biometricFailed: '❌ احراز هویت ناموفق',
+            biometricNotSupported: '❌ دستگاه شما پشتیبانی نمی‌کند',
+            biometricWaiting: '👆 در انتظار اثر انگشت...',
+            biometricFingerprint: '👆 ورود با اثر انگشت',
+            confirmSendTitle: 'تأیید ارسال NFT',
+            confirmSendSub: 'برای تأیید ارسال، احراز هویت کنید',
+            confirmBiometric: '👆 تأیید با اثر انگشت',
+            confirmPassword: '✅ تأیید با رمز',
+            cancel: '❌ لغو',
+            sending: '🔄 در حال ارسال...',
+            txConfirmed: '✅ تراکنش تأیید شد',
+            successTitle: 'ارسال موفق!',
+            successSub: 'NFT با موفقیت ارسال شد',
+            from: '📤 از', to: '📥 به', gas: '⛽ کارمزد',
+            time: '🕐 زمان', hash: '🔗 هش', tokenId: '🆔 شناسه', amount: '📦 تعداد',
+            txDetailTitle: '📜 جزئیات تراکنش',
+            txDetailSub: 'اطلاعات کامل تراکنش شما',
+            confirm: '✅ تأیید', closeBtn: '❌ بستن',
         },
         en: {
             connecting: '🔌 Connecting...', connected: '✅ Connected to Avalanche',
-            locked: '🔒 Wallet is locked, enter password', welcome: '👋 Welcome! Create your wallet',
+            locked: '🔒 Wallet locked, enter password', welcome: '👋 Welcome! Create your wallet',
             walletCreated: '✅ Wallet created!', walletImported: '✅ Wallet imported!',
-            walletUnlocked: '✅ Wallet unlocked!', refreshing: '🔄 Refreshing...',
-            updated: '✅ Updated', error: '❌ Error: ', notConnected: '❌ Wallet not connected',
+            walletUnlocked: '✅ Wallet unlocked!', error: '❌ Error: ', notConnected: '❌ Wallet not connected',
             loggedOut: '👋 Logged out', notConnectedAddr: '📋 Wallet not connected',
-            copy: 'Copy', gas: '⛽ AVAX Balance (Gas)', sendNFT: '📤 Send NFT',
+            copy: 'Copy', gas: '⛽ AVAX Balance', sendNFT: '📤 Send NFT',
             management: '🔐 Management', send: 'Send', seed: '🔑 12 Words', logout: '🚪 Logout',
             nfts: '🖼️ NFTs', noNFT: '🎨 No NFTs in this wallet',
-            loadingNFT: '🔄 Loading NFTs...', nftError: '❌ Error loading NFTs',
             select: 'Select', selected: 'Selected', recipient: 'Recipient Address',
-            nftId: 'NFT ID', nftAmount: 'Quantity',
-            footer: '🦊 FoxEggs - The Future of Decentralized Finance',
-            loginTitle: '🦊 FoxEggs', loginDesc: 'Welcome to your wallet',
-            createWallet: '🆕 Create New Wallet', importWallet: '📥 Import Wallet',
-            createWarning: '⚠️ Save these 12 words in a safe place!',
-            generate: '🔄 Generate Words', password: 'Password (min 6 characters)',
-            repeatPassword: 'Repeat Password', create: '✅ Create Wallet', import: '✅ Import',
+            nftId: 'NFT ID', nftAmount: 'Qty',
+            footer: '🦊 FoxEggs - The Future of DeFi',
+            createWallet: '🆕 Create Wallet', importWallet: '📥 Import Wallet',
+            createWarning: '⚠️ Save these 12 words!',
+            generate: '🔄 Generate', password: 'Password (min 6)',
+            repeatPassword: 'Repeat Password', create: '✅ Create', import: '✅ Import',
             back: '🔙 Back', unlock: '🔓 Unlock', enterPassword: 'Enter your password',
             seedPlaceholder: 'Enter 12 words...', generateClick: 'Click to generate',
-            seedTitle: '🔑 12 Recovery Words', seedWarning: '⚠️ Never share these words with anyone!',
+            seedTitle: '🔑 12 Recovery Words', seedWarning: '⚠️ Never share these words!',
             viewSeed: '🔓 View', close: '❌ Close', copied: '✅ Address copied',
             seedGenerated: '✅ 12 words generated', generateFirst: 'Generate words first',
-            passMin: 'Password must be at least 6 characters', passMatch: 'Passwords do not match',
+            passMin: 'Min 6 characters', passMatch: 'Passwords do not match',
             passWrong: '❌ Wrong password', invalidAddress: 'Invalid address',
-            invalidNFT: 'Enter valid NFT ID', txSuccess: '✅ Transaction successful!',
-            txConfirmed: '✅ Transaction confirmed', nftSent: '✅ NFT sent!',
-            nftConfirmed: '✅ NFT confirmed', logoutConfirm: 'Are you sure you want to logout?',
-            seedShown: '✅ Words displayed', importWarning: '⚠️ Enter your 12 wallet words',
-            importSeedPlaceholder: 'Enter 12 words...', addWalletTitle: '➕ Add New Wallet',
-            addWalletDesc: 'Create or import a new wallet', walletAdded: '✅ New wallet added!',
-            switchWallet: '🔄 Switch to wallet', walletDeleted: '🗑️ Wallet deleted',
-            deleteConfirm: 'Are you sure you want to delete this wallet?', noWallets: 'No wallets available',
-            active: 'Active', logoutTitle: '🚪 Logout from Wallet',
-            logoutDesc: 'Enter your password to logout', logoutPassPlaceholder: 'Enter your password',
-            confirmLogout: '✅ Confirm Logout', cancel: '❌ Cancel', selectNFTFirst: '❌ Please select an NFT first',
+            invalidNFT: 'Enter valid NFT ID', nftSent: '✅ NFT sent!',
+            noWallet: '❌ Wallet not connected',
+            selectNFTFirst: '❌ Select an NFT first',
+            txHistory: '📜 Transaction History',
+            noTx: 'No transactions yet',
+            biometricLabel: '🔐 Biometric Security',
+            biometricEnable: 'Enable Fingerprint',
+            biometricDisable: 'Disable Fingerprint',
+            biometricEnabled: '✅ Biometric enabled',
+            biometricDisabled: '🔓 Biometric disabled',
+            biometricFailed: '❌ Auth failed',
+            biometricNotSupported: '❌ Not supported',
+            biometricWaiting: '👆 Waiting for fingerprint...',
+            biometricFingerprint: '👆 Login with Fingerprint',
+            confirmSendTitle: 'Confirm NFT Send',
+            confirmSendSub: 'Authenticate to confirm',
+            confirmBiometric: '👆 Confirm with Fingerprint',
+            confirmPassword: '✅ Confirm with Password',
+            cancel: '❌ Cancel',
+            sending: '🔄 Sending...',
+            txConfirmed: '✅ Transaction confirmed',
+            successTitle: 'Success!',
+            successSub: 'NFT sent successfully',
+            from: '📤 From', to: '📥 To', gas: '⛽ Gas',
+            time: '🕐 Time', hash: '🔗 Hash', tokenId: '🆔 ID', amount: '📦 Amount',
+            txDetailTitle: '📜 Transaction Details',
+            txDetailSub: 'Full transaction info',
+            confirm: '✅ Confirm', closeBtn: '❌ Close',
         }
     };
 
-    // ========================================
-    // LANGUAGE
-    // ========================================
     function toggleLanguage() {
         currentLang = currentLang === 'fa' ? 'en' : 'fa';
         document.getElementById('langBtn').textContent = currentLang === 'fa' ? '🇺🇸 EN' : '🇮🇷 FA';
@@ -513,6 +863,15 @@
 
     function updateUI() {
         document.getElementById('footerText').textContent = t('footer');
+        document.getElementById('biometricLabel').textContent = t('biometricLabel');
+        document.getElementById('txHistoryLabel').textContent = t('txHistory');
+        
+        const biometricTextEl = document.getElementById('biometricText');
+        if (biometricTextEl) {
+            const enabled = localStorage.getItem('foxBiometricEnabled') === 'true';
+            biometricTextEl.textContent = enabled ? t('biometricDisable') : t('biometricEnable');
+        }
+        
         updateWalletDropdown();
         if (state.address) {
             document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(state.address);
@@ -520,16 +879,7 @@
             document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
         }
         if (state.provider && state.address && state.unlocked) status(t('connected'), 'success');
-        if (state.address && !state.unlocked) {
-            const loginModal = document.getElementById('loginModal');
-            if (loginModal.classList.contains('closed')) {
-                loginModal.classList.remove('closed');
-                document.getElementById('loginOptions').classList.add('hidden');
-                document.getElementById('unlockSection').classList.remove('hidden');
-                document.getElementById('createSection').classList.add('hidden');
-                document.getElementById('importSection').classList.add('hidden');
-            }
-        }
+        renderTxHistory();
     }
 
     // ========================================
@@ -550,14 +900,14 @@
         const container = document.getElementById('walletList');
         if (!container) return;
         if (state.wallets.length === 0) {
-            container.innerHTML = `<div class="wallet-item" style="color:#4a5a6a;justify-content:center;">${t('noWallets')}</div>`;
+            container.innerHTML = `<div class="wallet-item" style="color:#4a5a6a;justify-content:center;">هیچ کیف پولی وجود ندارد</div>`;
             return;
         }
         let html = '';
         state.wallets.forEach((wallet, index) => {
             const isActive = index === state.activeWalletIndex;
             const shortAddr = wallet.address.slice(0, 6) + '...' + wallet.address.slice(-4);
-            const activeLabel = isActive ? ` 🔵 ${t('active')}` : '';
+            const activeLabel = isActive ? ' 🔵' : '';
             html += `
                 <div class="wallet-item ${isActive ? 'active' : ''}" onclick="switchWallet(${index})">
                     <span class="wallet-addr">${shortAddr}${activeLabel}</span>
@@ -590,25 +940,19 @@
                 state.selectedNFTId = null;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(wallet.address);
                 document.getElementById('walletDropdown').classList.remove('show');
-                status('🔄 ' + t('switchWallet') + ' ' + shortAddr(wallet.address), 'success');
-                toast('🔄 ' + t('switchWallet'));
+                status('🔄 سوئیچ شد', 'success');
+                toast('🔄 سوئیچ شد');
                 refreshAll();
                 return;
             }
         } catch (e) {}
-        document.getElementById('loginModal').classList.remove('closed');
-        document.getElementById('loginOptions').classList.add('hidden');
-        document.getElementById('unlockSection').classList.remove('hidden');
-        document.getElementById('createSection').classList.add('hidden');
-        document.getElementById('importSection').classList.add('hidden');
-        document.getElementById('unlockPass').value = '';
-        document.getElementById('walletDropdown').classList.remove('show');
         state.pendingSwitchIndex = index;
-        status('🔒 لطفاً رمز خود را وارد کنید', 'info');
+        document.getElementById('walletDropdown').classList.remove('show');
+        showUnlockModal();
     }
 
     function deleteWallet(index) {
-        if (!confirm(t('deleteConfirm'))) return;
+        if (!confirm('از حذف این کیف پول مطمئن هستید؟')) return;
         state.wallets.splice(index, 1);
         if (state.activeWalletIndex === index) {
             state.activeWalletIndex = -1;
@@ -625,7 +969,7 @@
         }
         saveWallets();
         updateWalletDropdown();
-        toast(t('walletDeleted'), 'info');
+        toast('🗑️ حذف شد', 'info');
     }
 
     function addWalletToStorage(address, encryptedSeed) {
@@ -638,6 +982,205 @@
         saveWallets();
         updateWalletDropdown();
         return true;
+    }
+
+    // ========================================
+    // TRANSACTION HISTORY (localStorage)
+    // ========================================
+    function getTxHistory() {
+        try {
+            const key = 'foxTxHistory_' + (state.address || 'unknown');
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : [];
+        } catch (e) { return []; }
+    }
+
+    function saveTxToHistory(tx) {
+        try {
+            const key = 'foxTxHistory_' + (state.address || 'unknown');
+            const history = getTxHistory();
+            history.unshift(tx); // جدیدترین اول
+            // فقط 50 تا آخرین
+            if (history.length > 50) history.length = 50;
+            localStorage.setItem(key, JSON.stringify(history));
+        } catch (e) {}
+    }
+
+    function renderTxHistory() {
+        const container = document.getElementById('txHistory');
+        if (!container) return;
+        
+        if (!state.address) {
+            container.innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
+            return;
+        }
+        
+        const history = getTxHistory();
+        
+        if (history.length === 0) {
+            container.innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
+            return;
+        }
+        
+        let html = '<div class="tx-list">';
+        history.forEach((tx, index) => {
+            let imgHtml = tx.image
+                ? `<img src="${tx.image}" class="tx-image" onerror="this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
+                : `<div class="tx-image placeholder">🎨</div>`;
+            
+            const shortTo = tx.to.slice(0, 6) + '...' + tx.to.slice(-4);
+            const date = new Date(tx.timestamp).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
+            
+            html += `
+                <div class="tx-item" onclick="showTxDetail(${index})">
+                    ${imgHtml}
+                    <div class="tx-info">
+                        <div class="tx-title">${tx.nftName}</div>
+                        <div class="tx-sub">📥 ${shortTo} • ×${tx.amount}</div>
+                        <div class="tx-date">🕐 ${date}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function showTxDetail(index) {
+        const history = getTxHistory();
+        const tx = history[index];
+        if (!tx) return;
+        
+        const imgEl = document.getElementById('detailNFTImage');
+        const placeholderEl = document.getElementById('detailNFTImagePlaceholder');
+        
+        if (tx.image) {
+            imgEl.src = tx.image;
+            imgEl.style.display = 'block';
+            placeholderEl.classList.add('hidden');
+            imgEl.onerror = function() {
+                this.style.display = 'none';
+                placeholderEl.classList.remove('hidden');
+            };
+        } else {
+            imgEl.style.display = 'none';
+            placeholderEl.classList.remove('hidden');
+        }
+        
+        document.getElementById('detailNFTName').textContent = tx.nftName;
+        document.getElementById('detailCollection').textContent = tx.collection;
+        document.getElementById('detailTokenId').textContent = '#' + tx.tokenId;
+        document.getElementById('detailAmount').textContent = '×' + tx.amount;
+        document.getElementById('detailFrom').textContent = tx.from.slice(0, 10) + '...' + tx.from.slice(-8);
+        document.getElementById('detailFrom').title = tx.from;
+        document.getElementById('detailTo').textContent = tx.to.slice(0, 10) + '...' + tx.to.slice(-8);
+        document.getElementById('detailTo').title = tx.to;
+        document.getElementById('detailGas').textContent = tx.gasFee + ' AVAX';
+        document.getElementById('detailTime').textContent = new Date(tx.timestamp).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
+        document.getElementById('detailHash').textContent = tx.hash.slice(0, 10) + '...' + tx.hash.slice(-8);
+        document.getElementById('detailHash').title = tx.hash;
+        
+        document.getElementById('txDetailModal').classList.remove('closed');
+    }
+
+    function closeTxDetailModal() {
+        document.getElementById('txDetailModal').classList.add('closed');
+    }
+
+    // ========================================
+    // BIOMETRIC
+    // ========================================
+    async function checkBiometricSupport() {
+        const result = await BiometricAuth.checkAvailability();
+        biometricAvailable = result.available;
+        
+        const btn = document.getElementById('biometricBtn');
+        if (!btn) return;
+        
+        if (!biometricAvailable) {
+            btn.style.display = 'none';
+            return;
+        }
+        
+        btn.style.display = 'block';
+        const enabled = localStorage.getItem('foxBiometricEnabled') === 'true';
+        const icon = document.getElementById('biometricIcon');
+        const text = document.getElementById('biometricText');
+        
+        if (enabled) {
+            icon.textContent = '✅';
+            text.textContent = t('biometricDisable');
+        } else {
+            icon.textContent = '👆';
+            text.textContent = t('biometricEnable');
+        }
+    }
+
+    async function toggleBiometric() {
+        if (!biometricAvailable) {
+            toast(t('biometricNotSupported'), 'error');
+            return;
+        }
+        
+        const enabled = localStorage.getItem('foxBiometricEnabled') === 'true';
+        
+        if (enabled) {
+            await BiometricAuth.deleteCredentials();
+            localStorage.removeItem('foxBiometricEnabled');
+            document.getElementById('biometricIcon').textContent = '👆';
+            document.getElementById('biometricText').textContent = t('biometricEnable');
+            toast(t('biometricDisabled'), 'info');
+            return;
+        }
+        
+        if (!state.unlocked || !state.currentPassword) {
+            toast('❌ اول کیف پول را باز کن', 'error');
+            return;
+        }
+        
+        const verifyResult = await BiometricAuth.verify('برای فعال‌سازی اثر انگشت تأیید کنید');
+        
+        if (!verifyResult.success) {
+            toast(t('biometricFailed'), 'error');
+            return;
+        }
+        
+        const saved = await BiometricAuth.saveCredentials(
+            state.address,
+            state.currentPassword
+        );
+        
+        if (saved) {
+            localStorage.setItem('foxBiometricEnabled', 'true');
+            document.getElementById('biometricIcon').textContent = '✅';
+            document.getElementById('biometricText').textContent = t('biometricDisable');
+            toast(t('biometricEnabled'));
+        } else {
+            toast('❌ خطا در ذخیره‌سازی', 'error');
+        }
+    }
+
+    async function tryBiometricUnlock() {
+        const enabled = localStorage.getItem('foxBiometricEnabled') === 'true';
+        if (!enabled || !biometricAvailable) return false;
+        
+        const result = await BiometricAuth.verify('ورود به FoxEggs Wallet');
+        if (!result.success) return false;
+        
+        const creds = await BiometricAuth.getCredentials();
+        if (!creds || !creds.password) {
+            toast('❌ اطلاعات ذخیره‌شده پیدا نشد', 'error');
+            return false;
+        }
+        
+        document.getElementById('unlockPass').value = creds.password;
+        
+        try {
+            await unlockWallet();
+            return true;
+        } catch (e) {
+            return false;
+        }
     }
 
     // ========================================
@@ -700,8 +1243,8 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('addWalletModal').classList.add('closed');
-                status(t('walletAdded'), 'success');
-                toast('✅ ' + t('walletAdded'));
+                status('✅ کیف پول اضافه شد', 'success');
+                toast('✅ کیف پول اضافه شد');
                 await refreshAll();
             }
         } catch (e) { toast(t('error') + e.message, 'error'); }
@@ -724,8 +1267,8 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('addWalletModal').classList.add('closed');
-                status(t('walletAdded'), 'success');
-                toast('✅ ' + t('walletAdded'));
+                status('✅ کیف پول اضافه شد', 'success');
+                toast('✅ کیف پول اضافه شد');
                 await refreshAll();
             }
         } catch (e) { toast(t('passWrong'), 'error'); }
@@ -756,6 +1299,7 @@
             document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
             document.getElementById('avaxBalance').textContent = '0';
             document.getElementById('nftList').innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
+            document.getElementById('txHistory').innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
             document.getElementById('logoutModal').classList.add('closed');
             status(t('loggedOut'), 'info');
             toast('🚪 ' + t('loggedOut'));
@@ -815,11 +1359,14 @@
     // ========================================
     // SELECT NFT
     // ========================================
-    function selectNFT(contract, id, name) {
+    function selectNFT(contract, id, name, image, collection) {
         state.selectedNFTContract = contract;
         state.selectedNFTId = id;
+        state.selectedNFTName = name;
+        state.selectedNFTImage = image;
+        state.selectedNFTCollection = collection;
         document.getElementById('nftId').value = id;
-        toast('✅ ' + name + ' ' + t('selected'));
+        toast('✅ ' + name + ' انتخاب شد');
     }
 
     // ========================================
@@ -858,14 +1405,10 @@
             renderNFTs(allNFTs);
             status('✅ NFT ها بروزرسانی شدند', 'success');
         } catch (e) {
-            console.error('❌ خطا در دریافت NFT ها:', e);
             status('❌ خطا: ' + e.message, 'error');
         }
     }
 
-    // ========================================
-    // RENDER NFTS
-    // ========================================
     function renderNFTs(items) {
         const container = document.getElementById('nftList');
         if (items.length === 0) {
@@ -874,25 +1417,23 @@
         }
         let html = '<div class="nft-grid">';
         for (const item of items) {
+            const safeName = item.name.replace(/'/g, "\\'");
             let imageHtml = item.image
                 ? `<img src="${item.image}" alt="${item.name}" class="nft-image" onerror="this.outerHTML='&lt;div class=\\'nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
                 : `<div class="nft-image placeholder">🎨</div>`;
             html += `
-                <div class="nft-card" onclick="selectNFT('${item.contract}', ${item.id}, '${item.name.replace(/'/g, "\\'")}')">
+                <div class="nft-card" onclick="selectNFT('${item.contract}', ${item.id}, '${safeName}', '${item.image}', '${item.contractName.replace(/'/g, "\\'")}')">
                     ${imageHtml}
                     <div class="nft-name">${item.name}</div>
                     <span class="nft-id">ID: ${item.id}</span>
                     <span class="nft-balance">× ${item.balance}</span>
-                    <button class="select-btn" onclick="event.stopPropagation(); selectNFT('${item.contract}', ${item.id}, '${item.name.replace(/'/g, "\\'")}')">${t('select')}</button>
+                    <button class="select-btn" onclick="event.stopPropagation(); selectNFT('${item.contract}', ${item.id}, '${safeName}', '${item.image}', '${item.contractName.replace(/'/g, "\\'")}')">${t('select')}</button>
                 </div>`;
         }
         html += '</div>';
         container.innerHTML = html;
     }
 
-    // ========================================
-    // REFRESH
-    // ========================================
     async function refreshAll() {
         if (!state.address) { status(t('notConnected'), 'error'); return; }
         try {
@@ -900,16 +1441,21 @@
             document.getElementById('avaxBalance').textContent =
                 parseFloat(ethers.utils.formatEther(balance)).toFixed(4);
             await loadAllNFTs();
+            renderTxHistory();
         } catch (e) {
             status(t('error') + e.message, 'error');
         }
     }
 
     // ========================================
-    // SEND NFT
+    // SEND NFT WITH AUTHENTICATION
     // ========================================
-    async function sendNFT() {
-        if (!state.signer) { toast(t('error') + 'کیف پول باز نیست', 'error'); return; }
+    function startSendNFT() {
+        if (!state.signer) {
+            toast('❌ کیف پول باز نیست', 'error');
+            return;
+        }
+        
         const to = document.getElementById('nftSendTo').value.trim();
         const id = parseInt(document.getElementById('nftId').value);
         const amount = parseInt(document.getElementById('nftAmount').value) || 1;
@@ -918,31 +1464,203 @@
         if (!to || !ethers.utils.isAddress(to)) { toast(t('invalidAddress'), 'error'); return; }
         if (!contractAddress) { toast(t('selectNFTFirst'), 'error'); return; }
         if (!id || id <= 0) { toast(t('invalidNFT'), 'error'); return; }
+        if (to.toLowerCase() === state.address.toLowerCase()) {
+            toast('❌ نمی‌تونی به خودت بفرستی', 'error');
+            return;
+        }
+        
+        state.pendingTx = {
+            to: to,
+            id: id,
+            amount: amount,
+            contract: contractAddress,
+            nftName: state.selectedNFTName || `NFT #${id}`,
+            image: state.selectedNFTImage,
+            collection: state.selectedNFTCollection || 'Unknown'
+        };
+        
+        // پر کردن مودال تأیید
+        document.getElementById('confirmNFTName').textContent = state.pendingTx.nftName;
+        document.getElementById('confirmAmount').textContent = '×' + amount;
+        document.getElementById('confirmTo').textContent = to.slice(0, 10) + '...' + to.slice(-8);
+        document.getElementById('confirmTo').title = to;
+        document.getElementById('confirmPass').value = '';
+        
+        // نمایش دکمه بیومتریک اگه فعاله
+        const bioEnabled = localStorage.getItem('foxBiometricEnabled') === 'true' && biometricAvailable;
+        document.getElementById('confirmBiometricBtn').style.display = bioEnabled ? 'block' : 'none';
+        
+        document.getElementById('confirmTxModal').classList.remove('closed');
+    }
 
+    function closeConfirmModal() {
+        document.getElementById('confirmTxModal').classList.add('closed');
+        state.pendingTx = null;
+    }
+
+    async function confirmWithBiometric() {
+        if (!state.pendingTx) return;
+        
+        const result = await BiometricAuth.verify('تأیید ارسال NFT');
+        
+        if (!result.success) {
+            toast(t('biometricFailed'), 'error');
+            return;
+        }
+        
+        // رمز رو از Credentials بگیر و ارسال کن
+        const creds = await BiometricAuth.getCredentials();
+        if (!creds || !creds.password) {
+            toast('❌ اطلاعات پیدا نشد', 'error');
+            return;
+        }
+        
+        try {
+            decrypt(state.encryptedSeed, creds.password);
+        } catch (e) {
+            toast(t('passWrong'), 'error');
+            return;
+        }
+        
+        closeConfirmModal();
+        await executeTx();
+    }
+
+    async function confirmWithPassword() {
+        if (!state.pendingTx) return;
+        
+        const pass = document.getElementById('confirmPass').value;
+        if (!pass) {
+            toast('رمز عبور را وارد کنید', 'error');
+            return;
+        }
+        
+        try {
+            decrypt(state.encryptedSeed, pass);
+        } catch (e) {
+            toast(t('passWrong'), 'error');
+            document.getElementById('confirmPass').value = '';
+            return;
+        }
+        
+        closeConfirmModal();
+        await executeTx();
+    }
+
+    async function executeTx() {
+        const tx = state.pendingTx;
+        if (!tx) return;
+        
         try {
             document.getElementById('nftSendBtn').disabled = true;
-            status('🔄 در حال ارسال...', 'info');
+            status(t('sending'), 'info');
+            
             const contract = new ethers.Contract(
-                contractAddress,
+                tx.contract,
                 ['function safeTransferFrom(address, address, uint, uint, bytes)'],
                 state.signer
             );
-            const tx = await contract.safeTransferFrom(state.address, to, id, amount, '0x');
-            await tx.wait();
-            toast(t('nftSent'), 'success');
-            status(t('nftConfirmed'), 'success');
+            
+            // ارسال
+            const transaction = await contract.safeTransferFrom(
+                state.address, tx.to, tx.id, tx.amount, '0x'
+            );
+            
+            status('⏳ در انتظار تأیید شبکه...', 'info');
+            
+            // دریافت receipt برای کارمزد
+            const receipt = await transaction.wait();
+            
+            const gasUsed = receipt.gasUsed;
+            const effectiveGasPrice = receipt.effectiveGasPrice || transaction.gasPrice || ethers.BigNumber.from(0);
+            const gasFeeWei = gasUsed.mul(effectiveGasPrice);
+            const gasFeeAvax = parseFloat(ethers.utils.formatEther(gasFeeWei)).toFixed(6);
+            
+            // ذخیره در تاریخچه
+            const txRecord = {
+                hash: receipt.transactionHash,
+                from: state.address,
+                to: tx.to,
+                tokenId: tx.id,
+                amount: tx.amount,
+                nftName: tx.nftName,
+                image: tx.image,
+                collection: tx.collection,
+                contract: tx.contract,
+                gasFee: gasFeeAvax,
+                timestamp: Date.now(),
+                blockNumber: receipt.blockNumber
+            };
+            
+            saveTxToHistory(txRecord);
+            
+            // نمایش صفحه موفقیت
+            showSuccessModal(txRecord);
+            
+            // پاک کردن فرم
             document.getElementById('nftSendTo').value = '';
             document.getElementById('nftId').value = '';
             document.getElementById('nftAmount').value = '1';
             state.selectedNFTContract = null;
             state.selectedNFTId = null;
+            state.selectedNFTName = null;
+            state.selectedNFTImage = null;
+            state.selectedNFTCollection = null;
+            
+            status('✅ ' + t('txConfirmed'), 'success');
+            
+            // بروزرسانی NFT ها
             await refreshAll();
+            
         } catch (e) {
-            toast(t('error') + e.message, 'error');
+            console.error('TX error:', e);
+            let errMsg = e.message || 'خطا در ارسال';
+            if (e.code === 'ACTION_REJECTED' || errMsg.includes('user rejected')) {
+                errMsg = '❌ تراکنش لغو شد';
+            }
+            toast(t('error') + errMsg, 'error');
             status(t('error'), 'error');
         } finally {
             document.getElementById('nftSendBtn').disabled = false;
+            state.pendingTx = null;
         }
+    }
+
+    function showSuccessModal(tx) {
+        const imgEl = document.getElementById('successNFTImage');
+        const placeholderEl = document.getElementById('successNFTImagePlaceholder');
+        
+        if (tx.image) {
+            imgEl.src = tx.image;
+            imgEl.style.display = 'block';
+            placeholderEl.classList.add('hidden');
+            imgEl.onerror = function() {
+                this.style.display = 'none';
+                placeholderEl.classList.remove('hidden');
+            };
+        } else {
+            imgEl.style.display = 'none';
+            placeholderEl.classList.remove('hidden');
+        }
+        
+        document.getElementById('successNFTName').textContent = tx.nftName;
+        document.getElementById('successCollection').textContent = '📚 ' + tx.collection;
+        document.getElementById('successTokenId').textContent = '#' + tx.tokenId;
+        document.getElementById('successAmount').textContent = '×' + tx.amount;
+        document.getElementById('successFrom').textContent = tx.from.slice(0, 10) + '...' + tx.from.slice(-8);
+        document.getElementById('successFrom').title = tx.from;
+        document.getElementById('successTo').textContent = tx.to.slice(0, 10) + '...' + tx.to.slice(-8);
+        document.getElementById('successTo').title = tx.to;
+        document.getElementById('successGas').textContent = tx.gasFee + ' AVAX';
+        document.getElementById('successTime').textContent = new Date(tx.timestamp).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
+        document.getElementById('successHash').textContent = tx.hash.slice(0, 10) + '...' + tx.hash.slice(-8);
+        document.getElementById('successHash').title = tx.hash;
+        
+        document.getElementById('successModal').classList.remove('closed');
+    }
+
+    function closeSuccessModal() {
+        document.getElementById('successModal').classList.add('closed');
     }
 
     // ========================================
@@ -963,7 +1681,7 @@
             const seed = decrypt(state.encryptedSeed, pass);
             document.getElementById('seedViewResult').textContent = seed;
             document.getElementById('seedViewResult').classList.remove('hidden');
-            toast(t('seedShown'));
+            toast('✅ کلمات نمایش داده شد');
         } catch (e) { toast(t('passWrong'), 'error'); }
     }
 
@@ -977,11 +1695,34 @@
     }
 
     // ========================================
+    // SHOW UNLOCK MODAL
+    // ========================================
+    function showUnlockModal() {
+        document.getElementById('loginModal').classList.remove('closed');
+        document.getElementById('loginOptions').classList.add('hidden');
+        document.getElementById('unlockSection').classList.remove('hidden');
+        document.getElementById('createSection').classList.add('hidden');
+        document.getElementById('importSection').classList.add('hidden');
+        document.getElementById('unlockPass').value = '';
+        
+        const biometricEnabled = localStorage.getItem('foxBiometricEnabled') === 'true';
+        const fpBtn = document.getElementById('fingerprintUnlockBtn');
+        if (fpBtn) {
+            fpBtn.style.display = (biometricEnabled && biometricAvailable) ? 'block' : 'none';
+        }
+        
+        status(t('locked'), 'info');
+    }
+
+    // ========================================
     // INIT
     // ========================================
     async function init() {
         try {
             status(t('connecting'), 'info');
+            
+            await checkBiometricSupport();
+            
             let provider = null;
             let connected = false;
 
@@ -997,8 +1738,8 @@
             }
 
             if (!connected) {
-                status(t('error') + 'خطا در اتصال به شبکه', 'error');
-                toast('خطا در اتصال به شبکه', 'error');
+                status('❌ خطا در اتصال به شبکه', 'error');
+                toast('❌ خطا در اتصال به شبکه', 'error');
                 return;
             }
 
@@ -1013,13 +1754,27 @@
                 state.address = wallet.address;
                 state.encryptedSeed = wallet.encryptedSeed;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(wallet.address);
-                document.getElementById('loginModal').classList.remove('closed');
-                document.getElementById('loginOptions').classList.add('hidden');
-                document.getElementById('unlockSection').classList.remove('hidden');
-                document.getElementById('createSection').classList.add('hidden');
-                document.getElementById('importSection').classList.add('hidden');
-                status(t('locked'), 'info');
+                
+                const biometricEnabled = localStorage.getItem('foxBiometricEnabled') === 'true';
+                
+                if (biometricEnabled && biometricAvailable) {
+                    status(t('biometricWaiting'), 'info');
+                    updateWalletDropdown();
+                    document.getElementById('loginModal').classList.add('closed');
+                    
+                    setTimeout(async () => {
+                        const success = await tryBiometricUnlock();
+                        if (!success) {
+                            showUnlockModal();
+                        }
+                    }, 300);
+                    
+                    return;
+                }
+                
+                showUnlockModal();
                 updateWalletDropdown();
+                renderTxHistory();
                 return;
             }
 
@@ -1086,8 +1841,8 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('loginModal').classList.add('closed');
-                status(t('walletCreated'), 'success');
-                toast('🎉 ' + t('walletCreated'));
+                status('✅ کیف پول ساخته شد', 'success');
+                toast('🎉 کیف پول ساخته شد');
                 document.getElementById('createPass').value = '';
                 document.getElementById('createPass2').value = '';
                 newMnemonic = '';
@@ -1113,8 +1868,8 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('loginModal').classList.add('closed');
-                status(t('walletImported'), 'success');
-                toast('🎉 ' + t('walletImported'));
+                status('✅ کیف پول وارد شد', 'success');
+                toast('🎉 کیف پول وارد شد');
                 await refreshAll();
             }
         } catch (e) { toast(t('passWrong'), 'error'); }
@@ -1151,7 +1906,6 @@
         setTimeout(init, 500);
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener('click', function (event) {
         const dropdown = document.getElementById('walletDropdown');
         const btn = document.querySelector('.wallet-selector-btn');
@@ -1162,4 +1916,4 @@
 </script>
 
 </body>
-                </html>
+                        </html>
