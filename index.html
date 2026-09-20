@@ -936,13 +936,6 @@
                 </div>
             </div>
             
-            <div class="section-title" style="margin-top: 20px;" id="testSectionLabel">🧪 تست</div>
-            <div class="btn-group">
-                <button class="btn btn-secondary" onclick="testNotification('success')" style="font-size:0.7rem;">✅ موفقیت</button>
-                <button class="btn btn-secondary" onclick="testNotification('error')" style="font-size:0.7rem;">❌ خطا</button>
-                <button class="btn btn-secondary" onclick="testNotification('info')" style="font-size:0.7rem;">ℹ️ اطلاعات</button>
-            </div>
-            
             <button class="btn btn-secondary btn-full" onclick="closeSettings()" style="margin-top: 20px;" id="settingsCloseBtn">
                 ❌ بستن
             </button>
@@ -1160,7 +1153,20 @@
     }
 
     function vibrateDevice() {
+        // ۱. تلگرام Haptic Feedback
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+            try {
+                if (window.Telegram.WebApp.HapticFeedback.notificationOccurred) {
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                } else if (window.Telegram.WebApp.HapticFeedback.impactOccurred) {
+                    window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                }
+                return;
+            } catch (e) {}
+        }
+        // ۲. تنظیمات کاربر
         if (!Settings.getNotifVibrate()) return;
+        // ۳. Native Vibration
         if (navigator.vibrate) {
             navigator.vibrate(50);
         }
@@ -1217,7 +1223,6 @@
             try {
                 const { LocalNotifications } = window.Capacitor.Plugins;
                 if (!LocalNotifications) return;
-                
                 await LocalNotifications.createChannel({
                     id: 'foxeggs-notifications',
                     name: 'FoxEggs Notifications',
@@ -1229,29 +1234,22 @@
                     lights: true,
                     lightColor: '#4ade80'
                 });
-                console.log('Notification channel created');
             } catch (e) {
                 console.log('Channel creation error:', e);
             }
         },
         
         async send(title, body, type = 'success') {
-            // همیشه In-App Banner هم نشون بده
             showInAppBanner(type, title, body);
-            
-            // اگه Native نبود، فقط Banner کافیه
             if (!isNative) return;
-            
             try {
                 const { LocalNotifications } = window.Capacitor.Plugins;
                 if (!LocalNotifications) return;
-                
                 const hasPermission = await this.checkPermission();
                 if (!hasPermission) {
                     const granted = await this.requestPermission();
                     if (!granted) return;
                 }
-                
                 await LocalNotifications.schedule({
                     notifications: [{
                         id: Math.floor(Math.random() * 1000000),
@@ -1274,20 +1272,6 @@
 
     function showNotification(type, title, message) {
         NativeNotifications.send(title, message, type);
-    }
-
-    function testNotification(type) {
-        const messages = {
-            success: { fa: 'این یک اعلان موفقیت است', en: 'This is a success notification' },
-            error: { fa: 'این یک اعلان خطا است', en: 'This is an error notification' },
-            info: { fa: 'این یک اعلان اطلاعاتی است', en: 'This is an info notification' }
-        };
-        const titles = {
-            success: { fa: '✅ موفقیت', en: '✅ Success' },
-            error: { fa: '❌ خطا', en: '❌ Error' },
-            info: { fa: 'ℹ️ اطلاعات', en: 'ℹ️ Info' }
-        };
-        showNotification(type, titles[type][currentLang], messages[type][currentLang]);
     }
 
     // ========================================
@@ -1411,7 +1395,7 @@
     let biometricAvailable = false;
 
     // ========================================
-    // TRANSLATIONS (compact but complete)
+    // TRANSLATIONS
     // ========================================
     const translations = {
         fa: {
@@ -1492,7 +1476,6 @@
             notifSoundTitle: '🔊 صدای اعلان', notifSoundDesc: 'پخش صدا برای اعلان‌ها',
             notifVibrateTitle: '📳 ویبره', notifVibrateDesc: 'لرزش هنگام اعلان',
             notifDurationTitle: '⏱️ مدت نمایش اعلان', notifDurationDesc: 'چند ثانیه نمایش داده شود',
-            testSection: '🧪 تست',
         },
         en: {
             connecting: '🔌 Connecting...', connected: '✅ Connected to Avalanche',
@@ -1572,7 +1555,6 @@
             notifSoundTitle: '🔊 Notification Sound', notifSoundDesc: 'Play sound for notifications',
             notifVibrateTitle: '📳 Vibration', notifVibrateDesc: 'Vibrate on notifications',
             notifDurationTitle: '⏱️ Notification Duration', notifDurationDesc: 'How many seconds to display',
-            testSection: '🧪 Test',
         }
     };
 
@@ -1665,7 +1647,6 @@
         document.getElementById('notifVibrateDesc').textContent = L.notifVibrateDesc;
         document.getElementById('notifDurationTitle').textContent = L.notifDurationTitle;
         document.getElementById('notifDurationDesc').textContent = L.notifDurationDesc;
-        document.getElementById('testSectionLabel').textContent = L.testSection;
         document.getElementById('settingsCloseBtn').textContent = L.close;
         updateBioStatus();
         updateTxBioStatus();
@@ -2432,7 +2413,6 @@
             state.lastHash = receipt.transactionHash;
             saveTxToHistory(txRecord);
             showSuccessModal(txRecord);
-            // Native notification
             const notifTitle = currentLang === 'fa' ? '✅ NFT ارسال شد' : '✅ NFT Sent';
             const notifBody = currentLang === 'fa' 
                 ? `${tx.nftName} به ${tx.to.slice(0, 6)}...${tx.to.slice(-4)} ارسال شد`
@@ -2738,4 +2718,4 @@
 </script>
 
 </body>
-                                                          </html>
+                </html>
