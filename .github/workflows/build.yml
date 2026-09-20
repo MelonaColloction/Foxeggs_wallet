@@ -48,7 +48,7 @@ jobs:
 
 
       # ==========================================
-      # INSTALL REQUIRED ANDROID PACKAGES
+      # INSTALL ANDROID PACKAGES
       # ==========================================
       - name: Install Android SDK packages
         run: |
@@ -89,7 +89,8 @@ jobs:
             "private": true,
             "dependencies": {
               "@capacitor/core": "^7.4.0",
-              "@capacitor/android": "^7.4.0"
+              "@capacitor/android": "^7.4.0",
+              "@capgo/capacitor-native-biometric": "^7.0.0"
             },
             "devDependencies": {
               "@capacitor/cli": "^7.4.0"
@@ -154,6 +155,9 @@ jobs:
           with open(main_activity, "r", encoding="utf-8") as f:
               original = f.read()
 
+          # ------------------------------------------
+          # GET PACKAGE NAME FROM EXISTING FILE
+          # ------------------------------------------
           package_match = re.search(
               r'^\s*package\s+([^;]+);',
               original,
@@ -161,12 +165,17 @@ jobs:
           )
 
           if not package_match:
-              raise SystemExit("Package name not found.")
+              raise SystemExit(
+                  "Package name not found in MainActivity.java"
+              )
 
           package_name = package_match.group(1)
 
           print("Package:", package_name)
 
+          # ------------------------------------------
+          # CREATE FULLSCREEN MAIN ACTIVITY
+          # ------------------------------------------
           fullscreen_activity = f'''package {package_name};
 
           import android.os.Bundle;
@@ -202,6 +211,12 @@ jobs:
               f.write(fullscreen_activity)
 
           print("Fullscreen MainActivity created successfully.")
+
+          print("==========================================")
+          print("FINAL MAIN ACTIVITY")
+          print("==========================================")
+
+          print(fullscreen_activity)
           PY
 
 
@@ -266,7 +281,6 @@ jobs:
           echo "DETECTING KEYSTORE ALIAS"
           echo "=========================================="
 
-          # نمایش همه اطلاعات keystore
           keytool -list -v -keystore android/app/FoxEggs.keystore \
             -storepass "$KEYSTORE_PASSWORD" | head -n 30
 
@@ -275,7 +289,6 @@ jobs:
           echo "SEARCHING FOR ALIAS..."
           echo "=========================================="
 
-          # پیدا کردن alias خودکار (اولین PrivateKeyEntry)
           ALIAS=$(keytool -list -keystore android/app/FoxEggs.keystore \
             -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
             | grep "PrivateKeyEntry" \
@@ -284,10 +297,7 @@ jobs:
             | xargs)
 
           if [ -z "$ALIAS" ]; then
-            echo "❌ No PrivateKeyEntry alias found in keystore!"
-            echo "All keystore contents:"
-            keytool -list -keystore android/app/FoxEggs.keystore \
-              -storepass "$KEYSTORE_PASSWORD"
+            echo "❌ No PrivateKeyEntry alias found!"
             exit 1
           fi
 
@@ -296,10 +306,8 @@ jobs:
           echo "✅ AUTO-DETECTED ALIAS: $ALIAS"
           echo "=========================================="
 
-          # ذخیره alias در environment برای استفاده بعدی
           echo "DETECTED_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
 
-          # نوشتن در gradle.properties
           cat >> android/gradle.properties <<EOF
 
           FOXEGGS_KEYSTORE_FILE=FoxEggs.keystore
@@ -308,7 +316,7 @@ jobs:
           FOXEGGS_KEY_PASSWORD=${KEYSTORE_PASSWORD}
           EOF
 
-          echo "✅ Signing properties configured with alias: $ALIAS"
+          echo "Signing properties configured with alias: $ALIAS"
 
 
       # ==========================================
@@ -325,7 +333,9 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
+          # ------------------------------------------
           # APPLICATION ID
+          # ------------------------------------------
           text = re.sub(
               r'applicationId\s+"[^"]+"',
               'applicationId "com.foxeggs.wallet"',
@@ -333,7 +343,9 @@ jobs:
               count=1
           )
 
+          # ------------------------------------------
           # COMPILE SDK
+          # ------------------------------------------
           text = re.sub(
               r'compileSdk\s+\d+',
               'compileSdk 35',
@@ -341,7 +353,9 @@ jobs:
               count=1
           )
 
+          # ------------------------------------------
           # VERSION CODE
+          # ------------------------------------------
           text = re.sub(
               r'versionCode\s+\d+',
               'versionCode ' + os.environ["VERSION_CODE"],
@@ -349,7 +363,9 @@ jobs:
               count=1
           )
 
+          # ------------------------------------------
           # VERSION NAME
+          # ------------------------------------------
           text = re.sub(
               r'versionName\s+"[^"]+"',
               'versionName "' + os.environ["VERSION_NAME"] + '"',
@@ -357,7 +373,9 @@ jobs:
               count=1
           )
 
+          # ------------------------------------------
           # REMOVE EXISTING SIGNING CONFIG
+          # ------------------------------------------
           text = re.sub(
               r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)',
               '',
@@ -366,7 +384,9 @@ jobs:
               flags=re.S
           )
 
+          # ------------------------------------------
           # SIGNING CONFIG
+          # ------------------------------------------
           signing_block = '''
               signingConfigs {
                   release {
@@ -388,7 +408,9 @@ jobs:
                   1
               )
 
+          # ------------------------------------------
           # RELEASE BUILD TYPE
+          # ------------------------------------------
           release_pattern = (
               r'(buildTypes\s*\{\s*'
               r'release\s*\{)'
@@ -403,7 +425,9 @@ jobs:
                   flags=re.S
               )
 
+          # ------------------------------------------
           # MINIFY
+          # ------------------------------------------
           if re.search(r'buildTypes\s*\{.*?release\s*\{', text, re.S):
 
               release_match = re.search(
@@ -452,13 +476,6 @@ jobs:
           echo "=========================================="
 
           cat android/app/build.gradle
-
-          echo ""
-          echo "=========================================="
-          echo "GRADLE PROPERTIES"
-          echo "=========================================="
-
-          cat android/gradle.properties
 
 
       # ==========================================
@@ -513,6 +530,44 @@ jobs:
 
 
       # ==========================================
+      # ADD INTERNET + BIOMETRIC PERMISSIONS
+      # ==========================================
+      - name: Add Internet and Biometric permissions
+        run: |
+          python3 - <<'PY'
+          import re
+
+          path = "android/app/src/main/AndroidManifest.xml"
+
+          with open(path, "r", encoding="utf-8") as f:
+              text = f.read()
+
+          extras = ""
+
+          if 'android.permission.INTERNET' not in text:
+              extras += '    <uses-permission android:name="android.permission.INTERNET" />\n'
+
+          if 'android.permission.USE_BIOMETRIC' not in text:
+              extras += '    <uses-permission android:name="android.permission.USE_BIOMETRIC" />\n'
+
+          if 'android.permission.USE_FINGERPRINT' not in text:
+              extras += '    <uses-permission android:name="android.permission.USE_FINGERPRINT" />\n'
+
+          if extras:
+              text = text.replace(
+                  '<application',
+                  extras + '    <application',
+                  1
+              )
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(text)
+
+          print("Internet + Biometric permissions added.")
+          PY
+
+
+      # ==========================================
       # INSTALL PILLOW
       # ==========================================
       - name: Install Pillow
@@ -556,7 +611,8 @@ jobs:
                   "No image file found in project root."
               )
 
-          logo = files[0]
+          preferred = [f for f in files if f.lower() == "icon.png"]
+          logo = preferred[0] if preferred else files[0]
 
           print("==========================================")
           print("CUSTOM WALLET ICON")
