@@ -387,11 +387,13 @@
         nftContracts: [
             {
                 address: '0x4B1e65f73D8433043Bbe0AB8Cb3f118FAC662F9a',
-                name: 'Guardian Collection'
+                name: 'Guardian Collection',
+                image: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_00000000c00481f4b548d6987c2bf036.png'
             },
             {
                 address: '0xcfd6c099bc8B3c91D47D62156AEc6BA128eB6B92',
-                name: 'FoxEggs Autumn Edition'
+                name: 'FoxEggs Autumn Edition',
+                image: 'https://raw.githubusercontent.com/MelonaColloction/My-Amage-/refs/heads/main/file_00000000b8a88210a438ba3b1588f24a.png'
             }
         ]
     };
@@ -821,91 +823,6 @@
     }
 
     // ========================================
-    // FETCH NFT METADATA FROM NETWORK (IPFS / HTTP)
-    // ========================================
-    async function fetchNFTMetadata(contractAddress, tokenId) {
-        try {
-            const contract = new ethers.Contract(
-                contractAddress,
-                [
-                    'function uri(uint256) view returns (string)',
-                    'function tokenURI(uint256) view returns (string)',
-                    'function baseURI() view returns (string)'
-                ],
-                state.provider
-            );
-
-            let tokenURI = null;
-
-            // روش ۱: uri() برای ERC-1155
-            try { tokenURI = await contract.uri(tokenId); } catch (e) {}
-
-            // روش ۲: tokenURI() برای ERC-721
-            if (!tokenURI) {
-                try { tokenURI = await contract.tokenURI(tokenId); } catch (e) {}
-            }
-
-            // روش ۳: baseURI() + id
-            if (!tokenURI) {
-                try {
-                    const base = await contract.baseURI();
-                    if (base) tokenURI = base + tokenId + '.json';
-                } catch (e) {}
-            }
-
-            if (!tokenURI) return { name: `NFT #${tokenId}`, image: null };
-
-            // جایگزینی {id} در همه حالت‌های ممکن
-            const replacements = [
-                tokenId.toString(),
-                tokenId.toString().padStart(64, '0'),
-                tokenId.toString(16),
-                tokenId.toString(16).padStart(64, '0'),
-                '0x' + tokenId.toString(16),
-            ];
-
-            let metadata = null;
-
-            for (const repl of replacements) {
-                let testURI = tokenURI;
-
-                if (testURI.includes('{id}')) testURI = testURI.replace('{id}', repl);
-                else if (testURI.includes('{ID}')) testURI = testURI.replace('{ID}', repl);
-
-                // تبدیل IPFS به HTTP
-                if (testURI.startsWith('ipfs://')) {
-                    testURI = testURI.replace('ipfs://', 'https://ipfs.io/ipfs/');
-                }
-
-                try {
-                    const resp = await fetch(testURI);
-                    if (resp.ok) {
-                        metadata = await resp.json();
-                        break;
-                    }
-                } catch (e) { continue; }
-
-                // اگه {id} توی URI نبود، همین یه بار کافیه
-                if (!tokenURI.includes('{id}') && !tokenURI.includes('{ID}')) break;
-            }
-
-            if (metadata) {
-                let image = metadata.image || metadata.image_url || metadata.image_data || null;
-                if (image && image.startsWith('ipfs://')) {
-                    image = image.replace('ipfs://', 'https://ipfs.io/ipfs/');
-                }
-                return {
-                    name: metadata.name || `NFT #${tokenId}`,
-                    image: image
-                };
-            }
-        } catch (e) {
-            console.log('Metadata fetch error for token', tokenId, ':', e);
-        }
-        return { name: `NFT #${tokenId}`, image: null };
-    }
-
-    // ========================================
     // LOAD ALL NFTS
     // ========================================
     async function loadAllNFTs() {
@@ -925,12 +842,11 @@
                     try {
                         const balance = await contract.balanceOf(state.address, id);
                         if (balance.gt(0)) {
-                            const meta = await fetchNFTMetadata(contractInfo.address, id);
                             allNFTs.push({
                                 id: id,
                                 balance: balance.toNumber(),
-                                image: meta.image,
-                                name: meta.name,
+                                image: contractInfo.image,
+                                name: `${contractInfo.name} #${id}`,
                                 contract: contractInfo.address,
                                 contractName: contractInfo.name
                             });
@@ -1246,4 +1162,4 @@
 </script>
 
 </body>
-    </html>
+                </html>
