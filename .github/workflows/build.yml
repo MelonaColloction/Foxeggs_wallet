@@ -154,9 +154,6 @@ jobs:
           with open(main_activity, "r", encoding="utf-8") as f:
               original = f.read()
 
-          # ------------------------------------------
-          # GET PACKAGE NAME FROM EXISTING FILE
-          # ------------------------------------------
           package_match = re.search(
               r'^\s*package\s+([^;]+);',
               original,
@@ -164,17 +161,12 @@ jobs:
           )
 
           if not package_match:
-              raise SystemExit(
-                  "Package name not found in MainActivity.java"
-              )
+              raise SystemExit("Package name not found.")
 
           package_name = package_match.group(1)
 
           print("Package:", package_name)
 
-          # ------------------------------------------
-          # CREATE FULLSCREEN MAIN ACTIVITY
-          # ------------------------------------------
           fullscreen_activity = f'''package {package_name};
 
           import android.os.Bundle;
@@ -210,12 +202,6 @@ jobs:
               f.write(fullscreen_activity)
 
           print("Fullscreen MainActivity created successfully.")
-
-          print("==========================================")
-          print("FINAL MAIN ACTIVITY")
-          print("==========================================")
-
-          print(fullscreen_activity)
           PY
 
 
@@ -268,7 +254,7 @@ jobs:
 
 
       # ==========================================
-      # CONFIGURE SIGNING PROPERTIES
+      # CONFIGURE SIGNING PROPERTIES (AUTO-DETECT ALIAS)
       # ==========================================
       - name: Configure signing properties
         env:
@@ -276,15 +262,53 @@ jobs:
         run: |
           test -n "$KEYSTORE_PASSWORD"
 
+          echo "=========================================="
+          echo "DETECTING KEYSTORE ALIAS"
+          echo "=========================================="
+
+          # نمایش همه اطلاعات keystore
+          keytool -list -v -keystore android/app/FoxEggs.keystore \
+            -storepass "$KEYSTORE_PASSWORD" | head -n 30
+
+          echo ""
+          echo "=========================================="
+          echo "SEARCHING FOR ALIAS..."
+          echo "=========================================="
+
+          # پیدا کردن alias خودکار (اولین PrivateKeyEntry)
+          ALIAS=$(keytool -list -keystore android/app/FoxEggs.keystore \
+            -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
+            | grep "PrivateKeyEntry" \
+            | head -n 1 \
+            | cut -d',' -f1 \
+            | xargs)
+
+          if [ -z "$ALIAS" ]; then
+            echo "❌ No PrivateKeyEntry alias found in keystore!"
+            echo "All keystore contents:"
+            keytool -list -keystore android/app/FoxEggs.keystore \
+              -storepass "$KEYSTORE_PASSWORD"
+            exit 1
+          fi
+
+          echo ""
+          echo "=========================================="
+          echo "✅ AUTO-DETECTED ALIAS: $ALIAS"
+          echo "=========================================="
+
+          # ذخیره alias در environment برای استفاده بعدی
+          echo "DETECTED_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+
+          # نوشتن در gradle.properties
           cat >> android/gradle.properties <<EOF
 
           FOXEGGS_KEYSTORE_FILE=FoxEggs.keystore
           FOXEGGS_KEYSTORE_PASSWORD=${KEYSTORE_PASSWORD}
-          FOXEGGS_KEY_ALIAS=foxeggs
+          FOXEGGS_KEY_ALIAS=${ALIAS}
           FOXEGGS_KEY_PASSWORD=${KEYSTORE_PASSWORD}
           EOF
 
-          echo "Signing properties configured."
+          echo "✅ Signing properties configured with alias: $ALIAS"
 
 
       # ==========================================
@@ -301,9 +325,7 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          # ------------------------------------------
           # APPLICATION ID
-          # ------------------------------------------
           text = re.sub(
               r'applicationId\s+"[^"]+"',
               'applicationId "com.foxeggs.wallet"',
@@ -311,9 +333,7 @@ jobs:
               count=1
           )
 
-          # ------------------------------------------
           # COMPILE SDK
-          # ------------------------------------------
           text = re.sub(
               r'compileSdk\s+\d+',
               'compileSdk 35',
@@ -321,9 +341,7 @@ jobs:
               count=1
           )
 
-          # ------------------------------------------
           # VERSION CODE
-          # ------------------------------------------
           text = re.sub(
               r'versionCode\s+\d+',
               'versionCode ' + os.environ["VERSION_CODE"],
@@ -331,9 +349,7 @@ jobs:
               count=1
           )
 
-          # ------------------------------------------
           # VERSION NAME
-          # ------------------------------------------
           text = re.sub(
               r'versionName\s+"[^"]+"',
               'versionName "' + os.environ["VERSION_NAME"] + '"',
@@ -341,9 +357,7 @@ jobs:
               count=1
           )
 
-          # ------------------------------------------
           # REMOVE EXISTING SIGNING CONFIG
-          # ------------------------------------------
           text = re.sub(
               r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)',
               '',
@@ -352,9 +366,7 @@ jobs:
               flags=re.S
           )
 
-          # ------------------------------------------
           # SIGNING CONFIG
-          # ------------------------------------------
           signing_block = '''
               signingConfigs {
                   release {
@@ -376,9 +388,7 @@ jobs:
                   1
               )
 
-          # ------------------------------------------
           # RELEASE BUILD TYPE
-          # ------------------------------------------
           release_pattern = (
               r'(buildTypes\s*\{\s*'
               r'release\s*\{)'
@@ -393,9 +403,7 @@ jobs:
                   flags=re.S
               )
 
-          # ------------------------------------------
           # MINIFY
-          # ------------------------------------------
           if re.search(r'buildTypes\s*\{.*?release\s*\{', text, re.S):
 
               release_match = re.search(
@@ -444,6 +452,13 @@ jobs:
           echo "=========================================="
 
           cat android/app/build.gradle
+
+          echo ""
+          echo "=========================================="
+          echo "GRADLE PROPERTIES"
+          echo "=========================================="
+
+          cat android/gradle.properties
 
 
       # ==========================================
@@ -637,6 +652,10 @@ jobs:
           echo ""
           echo "SIGNING:"
           grep -A10 "signingConfigs" android/app/build.gradle
+
+          echo ""
+          echo "ALIAS USED:"
+          grep "FOXEGGS_KEY_ALIAS" android/gradle.properties
 
 
       # ==========================================
