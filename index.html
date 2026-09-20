@@ -241,6 +241,28 @@
         .detail-row .detail-value.gold { color: #ffd700; }
         .detail-row .detail-value.white { color: #fff; }
         .detail-row .detail-value.purple { color: #a78bfa; }
+        
+        /* Copy hash button */
+        .hash-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 12px; background: #0a0f20; border-radius: 12px;
+            margin-bottom: 8px; font-size: 0.72rem; gap: 8px;
+        }
+        .hash-row .hash-label { color: #8a9bb5; flex-shrink: 0; }
+        .hash-row .hash-value {
+            color: #a78bfa; font-family: monospace; text-align: left;
+            direction: ltr; flex: 1;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            cursor: pointer;
+        }
+        .hash-row .hash-copy-btn {
+            background: #1a2a4a; border: none; color: #4ade80;
+            padding: 4px 10px; border-radius: 10px; font-size: 0.65rem;
+            cursor: pointer; font-family: inherit; flex-shrink: 0;
+            transition: 0.2s;
+        }
+        .hash-row .hash-copy-btn:hover { background: #2a3a5a; }
+        .hash-row .hash-copy-btn:active { transform: scale(0.95); }
 
         /* Confirmation Modal */
         .confirm-modal {
@@ -365,6 +387,10 @@
         .settings-label .title { font-size: 0.85rem; color: #fff; margin-bottom: 4px; }
         .settings-label .desc { font-size: 0.65rem; color: #8a9bb5; }
 
+        /* RTL/LTR specific */
+        html[dir="ltr"] .settings-label { text-align: left; }
+        html[dir="rtl"] .settings-label { text-align: left; }
+
         @media (max-width: 420px) {
             .card { padding: 14px 12px; }
             .balance-item .value { font-size: 1.1rem; }
@@ -391,7 +417,7 @@
                     <button class="wallet-selector-btn" onclick="toggleWalletDropdown()" id="walletSelectorBtn">👛 کیف پول‌ها</button>
                     <div class="wallet-dropdown" id="walletDropdown">
                         <div id="walletList"></div>
-                        <div class="add-wallet-btn" onclick="showAddWallet()">➕ افزودن کیف پول جدید</div>
+                        <div class="add-wallet-btn" onclick="showAddWallet()" id="addWalletBtnText">➕ افزودن کیف پول جدید</div>
                     </div>
                 </div>
                 <button class="lang-btn" onclick="toggleLanguage()" id="langBtn">🇺🇸 EN</button>
@@ -417,7 +443,7 @@
 
         <div class="section-title" id="nftListLabel">🖼️ NFT ها</div>
         <div class="nft-list" id="nftList">
-            <div class="empty-state">برای مشاهده NFT، کیف پول را بسازید</div>
+            <div class="empty-state" id="emptyNFTMsg">برای مشاهده NFT، کیف پول را بسازید</div>
         </div>
 
         <div class="section-title" id="sendNFTLabel">📤 انتقال NFT</div>
@@ -432,11 +458,11 @@
 
         <div class="section-title" id="txHistoryLabel">📜 تاریخچه تراکنش ها</div>
         <div id="txHistory">
-            <div class="empty-state">هنوز تراکنشی ثبت نشده</div>
+            <div class="empty-state" id="emptyTxMsg">هنوز تراکنشی ثبت نشده</div>
         </div>
 
         <div class="section-title" id="settingsLabel">⚙️ تنظیمات</div>
-        <button class="btn btn-outline btn-full" onclick="showSettings()" style="margin-bottom: 8px;">
+        <button class="btn btn-outline btn-full" onclick="showSettings()" style="margin-bottom: 8px;" id="openSettingsBtn">
             ⚙️ باز کردن تنظیمات
         </button>
 
@@ -453,19 +479,19 @@
     <div class="modal-overlay closed" id="confirmTxModal">
         <div class="confirm-modal">
             <div class="confirm-icon">⚠️</div>
-            <div class="confirm-title">تأیید ارسال NFT</div>
+            <div class="confirm-title" id="confirmTitleText">تأیید ارسال NFT</div>
             <div class="confirm-sub" id="confirmSubText">برای ارسال، دکمه تأیید را بزنید</div>
             
             <div class="detail-row">
-                <span class="detail-label">NFT:</span>
+                <span class="detail-label" id="confirmNFTLabel">NFT:</span>
                 <span class="detail-value white" id="confirmNFTName">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">تعداد:</span>
+                <span class="detail-label" id="confirmAmountLabel">تعداد:</span>
                 <span class="detail-value green" id="confirmAmount">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">به:</span>
+                <span class="detail-label" id="confirmToLabel">به:</span>
                 <span class="detail-value" id="confirmTo">-</span>
             </div>
             
@@ -476,7 +502,7 @@
                 <button class="btn btn-success btn-full" id="confirmSimpleBtn" onclick="confirmAndSend()">
                     ✅ تأیید و ارسال
                 </button>
-                <button class="btn btn-outline btn-full" onclick="closeConfirmModal()" style="margin-top:6px;">
+                <button class="btn btn-outline btn-full" onclick="closeConfirmModal()" style="margin-top:6px;" id="confirmCancelBtn">
                     ❌ لغو
                 </button>
             </div>
@@ -487,8 +513,8 @@
     <div class="modal-overlay closed" id="successModal">
         <div class="success-modal">
             <div class="success-icon">✓</div>
-            <div class="success-title">ارسال موفق!</div>
-            <div class="success-sub">NFT با موفقیت ارسال شد</div>
+            <div class="success-title" id="successTitleText">ارسال موفق!</div>
+            <div class="success-sub" id="successSubText">NFT با موفقیت ارسال شد</div>
             
             <img id="successNFTImage" class="detail-nft-image" src="" alt="NFT" />
             <div id="successNFTImagePlaceholder" class="detail-nft-image placeholder hidden">🎨</div>
@@ -497,35 +523,38 @@
             <div class="detail-nft-collection" id="successCollection">-</div>
             
             <div class="detail-row">
-                <span class="detail-label">🆔 شناسه:</span>
+                <span class="detail-label" id="successTokenIdLabel">🆔 شناسه:</span>
                 <span class="detail-value white" id="successTokenId">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">📦 تعداد ارسالی:</span>
+                <span class="detail-label" id="successAmountLabel">📦 تعداد ارسالی:</span>
                 <span class="detail-value green" id="successAmount">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">📤 از:</span>
+                <span class="detail-label" id="successFromLabel">📤 از:</span>
                 <span class="detail-value red" id="successFrom">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">📥 به:</span>
+                <span class="detail-label" id="successToLabel">📥 به:</span>
                 <span class="detail-value green" id="successTo">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">⛽ کارمزد:</span>
+                <span class="detail-label" id="successGasLabel">⛽ کارمزد:</span>
                 <span class="detail-value gold" id="successGas">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">🕐 زمان:</span>
+                <span class="detail-label" id="successTimeLabel">🕐 زمان:</span>
                 <span class="detail-value white" id="successTime">-</span>
             </div>
-            <div class="detail-row">
-                <span class="detail-label">🔗 هش:</span>
-                <span class="detail-value purple" id="successHash">-</span>
+            
+            <!-- Hash with copy button -->
+            <div class="hash-row">
+                <span class="hash-label" id="successHashLabel">🔗 هش:</span>
+                <span class="hash-value" id="successHash" onclick="copySuccessHash()">-</span>
+                <button class="hash-copy-btn" onclick="copySuccessHash()" id="successHashCopyBtn">📋</button>
             </div>
             
-            <button class="btn btn-success btn-full" onclick="closeSuccessModal()" style="margin-top:16px;">
+            <button class="btn btn-success btn-full" onclick="closeSuccessModal()" style="margin-top:16px;" id="successConfirmBtn">
                 ✅ تأیید
             </button>
         </div>
@@ -534,8 +563,8 @@
     <!-- TX DETAIL MODAL -->
     <div class="modal-overlay closed" id="txDetailModal">
         <div class="success-modal">
-            <div class="success-title" style="color:#4ade80;">📜 جزئیات تراکنش</div>
-            <div class="success-sub">اطلاعات کامل تراکنش شما</div>
+            <div class="success-title" style="color:#4ade80;" id="txDetailTitleText">📜 جزئیات تراکنش</div>
+            <div class="success-sub" id="txDetailSubText">اطلاعات کامل تراکنش شما</div>
             
             <img id="detailNFTImage" class="detail-nft-image" src="" alt="NFT" style="border-color: #e94560;" />
             <div id="detailNFTImagePlaceholder" class="detail-nft-image placeholder hidden">🎨</div>
@@ -544,35 +573,38 @@
             <div class="detail-nft-collection" id="detailCollection">-</div>
             
             <div class="detail-row">
-                <span class="detail-label">🆔 شناسه:</span>
+                <span class="detail-label" id="detailTokenIdLabel">🆔 شناسه:</span>
                 <span class="detail-value white" id="detailTokenId">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">📦 تعداد:</span>
+                <span class="detail-label" id="detailAmountLabel">📦 تعداد:</span>
                 <span class="detail-value green" id="detailAmount">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">📤 از:</span>
+                <span class="detail-label" id="detailFromLabel">📤 از:</span>
                 <span class="detail-value red" id="detailFrom">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">📥 به:</span>
+                <span class="detail-label" id="detailToLabel">📥 به:</span>
                 <span class="detail-value green" id="detailTo">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">⛽ کارمزد:</span>
+                <span class="detail-label" id="detailGasLabel">⛽ کارمزد:</span>
                 <span class="detail-value gold" id="detailGas">-</span>
             </div>
             <div class="detail-row">
-                <span class="detail-label">🕐 زمان:</span>
+                <span class="detail-label" id="detailTimeLabel">🕐 زمان:</span>
                 <span class="detail-value white" id="detailTime">-</span>
             </div>
-            <div class="detail-row">
-                <span class="detail-label">🔗 هش:</span>
-                <span class="detail-value purple" id="detailHash">-</span>
+            
+            <!-- Hash with copy button -->
+            <div class="hash-row">
+                <span class="hash-label" id="detailHashLabel">🔗 هش:</span>
+                <span class="hash-value" id="detailHash" onclick="copyDetailHash()">-</span>
+                <button class="hash-copy-btn" onclick="copyDetailHash()" id="detailHashCopyBtn">📋</button>
             </div>
             
-            <button class="btn btn-outline btn-full" onclick="closeTxDetailModal()" style="margin-top:16px;">
+            <button class="btn btn-outline btn-full" onclick="closeTxDetailModal()" style="margin-top:16px;" id="txDetailCloseBtn">
                 ❌ بستن
             </button>
         </div>
@@ -581,15 +613,15 @@
     <!-- SETTINGS MODAL -->
     <div class="modal-overlay closed" id="settingsModal">
         <div class="modal">
-            <h2 style="color:#4ade80;">⚙️ تنظیمات</h2>
-            <div class="desc">تنظیمات امنیتی و اپلیکیشن</div>
+            <h2 style="color:#4ade80;" id="settingsTitleText">⚙️ تنظیمات</h2>
+            <div class="desc" id="settingsDescText">تنظیمات امنیتی و اپلیکیشن</div>
             
-            <div class="section-title" style="margin-top: 20px;">🔐 امنیت</div>
+            <div class="section-title" id="securitySectionLabel" style="margin-top: 20px;">🔐 امنیت</div>
             
             <div class="settings-section">
                 <div class="settings-row">
                     <div class="settings-label">
-                        <div class="title">👆 ورود با اثر انگشت</div>
+                        <div class="title" id="bioLoginTitle">👆 ورود با اثر انگشت</div>
                         <div class="desc" id="bioStatusText">در حال بررسی...</div>
                     </div>
                     <label class="toggle-switch">
@@ -603,8 +635,8 @@
             <div class="settings-section">
                 <div class="settings-row">
                     <div class="settings-label">
-                        <div class="title">🔓 تأیید تراکنش با اثر انگشت</div>
-                        <div class="desc">قبل از ارسال NFT اثر انگشت بخواهد</div>
+                        <div class="title" id="bioTxTitle">🔓 تأیید تراکنش با اثر انگشت</div>
+                        <div class="desc" id="bioTxDesc">قبل از ارسال NFT اثر انگشت بخواهد</div>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="txBioToggle" onchange="toggleTxBiometric()" />
@@ -613,7 +645,7 @@
                 </div>
             </div>
             
-            <button class="btn btn-secondary btn-full" onclick="closeSettings()" style="margin-top: 20px;">
+            <button class="btn btn-secondary btn-full" onclick="closeSettings()" style="margin-top: 20px;" id="settingsCloseBtn">
                 ❌ بستن
             </button>
         </div>
@@ -622,31 +654,31 @@
     <!-- ADD WALLET MODAL -->
     <div class="modal-overlay closed" id="addWalletModal">
         <div class="modal">
-            <h2>➕ افزودن کیف پول جدید</h2>
-            <div class="desc">یک کیف پول جدید بسازید یا وارد کنید</div>
+            <h2 id="addWalletTitle">➕ افزودن کیف پول جدید</h2>
+            <div class="desc" id="addWalletDesc">یک کیف پول جدید بسازید یا وارد کنید</div>
             <div id="addWalletOptions">
-                <button class="btn btn-primary btn-full" onclick="showAddCreateWallet()">🆕 ساخت کیف پول جدید</button>
+                <button class="btn btn-primary btn-full" onclick="showAddCreateWallet()" id="addCreateBtn">🆕 ساخت کیف پول جدید</button>
                 <br><br>
-                <button class="btn btn-outline btn-full" onclick="showAddImportWallet()">📥 وارد کردن کیف پول</button>
+                <button class="btn btn-outline btn-full" onclick="showAddImportWallet()" id="addImportBtn">📥 وارد کردن کیف پول</button>
                 <br><br>
-                <button class="btn btn-secondary btn-full" onclick="closeAddWalletModal()">❌ لغو</button>
+                <button class="btn btn-secondary btn-full" onclick="closeAddWalletModal()" id="addCancelBtn">❌ لغو</button>
             </div>
             <div id="addCreateSection" class="hidden">
-                <div class="warning-box">⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!</div>
+                <div class="warning-box" id="addCreateWarning">⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!</div>
                 <div class="seed-display" id="addNewSeed">برای تولید کلیک کنید</div>
-                <button class="btn btn-secondary btn-full" onclick="generateAddSeed()">🔄 تولید کلمات</button>
+                <button class="btn btn-secondary btn-full" onclick="generateAddSeed()" id="addGenBtn">🔄 تولید کلمات</button>
                 <div class="input-group"><input type="password" id="addCreatePass" placeholder="رمز عبور (حداقل ۶ کاراکتر)" /></div>
                 <div class="input-group"><input type="password" id="addCreatePass2" placeholder="تکرار رمز عبور" /></div>
-                <button class="btn btn-success btn-full" onclick="addCreateWallet()">✅ افزودن کیف پول</button>
-                <button class="btn btn-outline btn-full" onclick="backToAddWalletOptions()" style="margin-top:6px;">🔙 بازگشت</button>
+                <button class="btn btn-success btn-full" onclick="addCreateWallet()" id="addSubmitBtn">✅ افزودن کیف پول</button>
+                <button class="btn btn-outline btn-full" onclick="backToAddWalletOptions()" style="margin-top:6px;" id="addBackBtn">🔙 بازگشت</button>
             </div>
             <div id="addImportSection" class="hidden">
-                <div class="warning-box">⚠️ ۱۲ کلمه کیف پول خود را وارد کنید</div>
+                <div class="warning-box" id="addImportWarning">⚠️ ۱۲ کلمه کیف پول خود را وارد کنید</div>
                 <div class="input-group"><textarea id="addImportSeed" placeholder="۱۲ کلمه را وارد کنید..."></textarea></div>
                 <div class="input-group"><input type="password" id="addImportPass" placeholder="رمز عبور جدید (حداقل ۶ کاراکتر)" /></div>
                 <div class="input-group"><input type="password" id="addImportPass2" placeholder="تکرار رمز عبور" /></div>
-                <button class="btn btn-success btn-full" onclick="addImportWallet()">✅ وارد کردن</button>
-                <button class="btn btn-outline btn-full" onclick="backToAddWalletOptions()" style="margin-top:6px;">🔙 بازگشت</button>
+                <button class="btn btn-success btn-full" onclick="addImportWallet()" id="addImportSubmitBtn">✅ وارد کردن</button>
+                <button class="btn btn-outline btn-full" onclick="backToAddWalletOptions()" style="margin-top:6px;" id="addImportBackBtn">🔙 بازگشت</button>
             </div>
         </div>
     </div>
@@ -654,33 +686,33 @@
     <!-- LOGIN MODAL -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal">
-            <h2>🦊 FoxEggs</h2>
-            <div class="desc">به کیف پول خود خوش آمدید</div>
+            <h2 id="loginTitle">🦊 FoxEggs</h2>
+            <div class="desc" id="loginDesc">به کیف پول خود خوش آمدید</div>
             <div id="loginOptions">
-                <button class="btn btn-primary btn-full" onclick="showCreateWallet()">🆕 ساخت کیف پول جدید</button>
+                <button class="btn btn-primary btn-full" onclick="showCreateWallet()" id="loginCreateBtn">🆕 ساخت کیف پول جدید</button>
                 <br><br>
-                <button class="btn btn-outline btn-full" onclick="showImportWallet()">📥 وارد کردن کیف پول</button>
+                <button class="btn btn-outline btn-full" onclick="showImportWallet()" id="loginImportBtn">📥 وارد کردن کیف پول</button>
             </div>
             <div id="createSection" class="hidden">
-                <div class="warning-box">⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!</div>
+                <div class="warning-box" id="createWarning">⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!</div>
                 <div class="seed-display" id="newSeed">برای تولید کلیک کنید</div>
-                <button class="btn btn-secondary btn-full" onclick="generateSeed()">🔄 تولید کلمات</button>
+                <button class="btn btn-secondary btn-full" onclick="generateSeed()" id="genSeedBtn">🔄 تولید کلمات</button>
                 <div class="input-group"><input type="password" id="createPass" placeholder="رمز عبور (حداقل ۶ کاراکتر)" /></div>
                 <div class="input-group"><input type="password" id="createPass2" placeholder="تکرار رمز عبور" /></div>
-                <button class="btn btn-success btn-full" onclick="createWallet()">✅ ساخت کیف پول</button>
-                <button class="btn btn-outline btn-full" onclick="backToLogin()" style="margin-top:6px;">🔙 بازگشت</button>
+                <button class="btn btn-success btn-full" onclick="createWallet()" id="createSubmitBtn">✅ ساخت کیف پول</button>
+                <button class="btn btn-outline btn-full" onclick="backToLogin()" style="margin-top:6px;" id="createBackBtn">🔙 بازگشت</button>
             </div>
             <div id="importSection" class="hidden">
-                <div class="warning-box">⚠️ ۱۲ کلمه کیف پول خود را وارد کنید</div>
+                <div class="warning-box" id="importWarning">⚠️ ۱۲ کلمه کیف پول خود را وارد کنید</div>
                 <div class="input-group"><textarea id="importSeed" placeholder="۱۲ کلمه را وارد کنید..."></textarea></div>
                 <div class="input-group"><input type="password" id="importPass" placeholder="رمز عبور جدید (حداقل ۶ کاراکتر)" /></div>
                 <div class="input-group"><input type="password" id="importPass2" placeholder="تکرار رمز عبور" /></div>
-                <button class="btn btn-success btn-full" onclick="importWallet()">✅ وارد کردن</button>
-                <button class="btn btn-outline btn-full" onclick="backToLogin()" style="margin-top:6px;">🔙 بازگشت</button>
+                <button class="btn btn-success btn-full" onclick="importWallet()" id="importSubmitBtn">✅ وارد کردن</button>
+                <button class="btn btn-outline btn-full" onclick="backToLogin()" style="margin-top:6px;" id="importBackBtn">🔙 بازگشت</button>
             </div>
             <div id="unlockSection" class="hidden">
                 <div class="input-group"><input type="password" id="unlockPass" placeholder="رمز عبور خود را وارد کنید" /></div>
-                <button class="btn btn-success btn-full" onclick="unlockWallet()">🔓 باز کردن</button>
+                <button class="btn btn-success btn-full" onclick="unlockWallet()" id="unlockBtn">🔓 باز کردن</button>
                 <button class="btn btn-outline btn-full" id="fingerprintUnlockBtn" onclick="tryBiometricUnlock()" style="margin-top:6px; display:none;">
                     👆 ورود با اثر انگشت
                 </button>
@@ -691,23 +723,23 @@
     <!-- LOGOUT CONFIRM MODAL -->
     <div class="modal-overlay closed" id="logoutModal">
         <div class="modal">
-            <h2>🚪 خروج از کیف پول</h2>
-            <div class="desc">برای خروج، رمز عبور خود را وارد کنید</div>
+            <h2 id="logoutTitle">🚪 خروج از کیف پول</h2>
+            <div class="desc" id="logoutDesc">برای خروج، رمز عبور خود را وارد کنید</div>
             <div class="input-group"><input type="password" id="logoutPass" placeholder="رمز عبور را وارد کنید" /></div>
-            <button class="btn btn-danger btn-full" onclick="confirmLogout()" style="background:#e94560;color:#fff;border:none;">✅ تأیید خروج</button>
-            <button class="btn btn-outline btn-full" onclick="closeLogoutModal()" style="margin-top:6px;">❌ لغو</button>
+            <button class="btn btn-danger btn-full" onclick="confirmLogout()" style="background:#e94560;color:#fff;border:none;" id="logoutConfirmBtn">✅ تأیید خروج</button>
+            <button class="btn btn-outline btn-full" onclick="closeLogoutModal()" style="margin-top:6px;" id="logoutCancelBtn">❌ لغو</button>
         </div>
     </div>
 
     <!-- SEED MODAL -->
     <div class="modal-overlay closed" id="seedModal">
         <div class="modal">
-            <h2>🔑 ۱۲ کلمه بازیابی</h2>
-            <div class="warning-box">⚠️ این کلمات را با هیچکس به اشتراک نگذارید!</div>
+            <h2 id="seedTitle">🔑 ۱۲ کلمه بازیابی</h2>
+            <div class="warning-box" id="seedWarning">⚠️ این کلمات را با هیچکس به اشتراک نگذارید!</div>
             <div class="input-group"><input type="password" id="seedViewPass" placeholder="رمز عبور خود را وارد کنید" /></div>
-            <button class="btn btn-primary btn-full" onclick="viewSeed()">🔓 مشاهده</button>
+            <button class="btn btn-primary btn-full" onclick="viewSeed()" id="seedViewBtn">🔓 مشاهده</button>
             <div class="seed-display hidden" id="seedViewResult"></div>
-            <button class="btn btn-outline btn-full" onclick="closeSeedModal()" style="margin-top:6px;">❌ بستن</button>
+            <button class="btn btn-outline btn-full" onclick="closeSeedModal()" style="margin-top:6px;" id="seedCloseBtn">❌ بستن</button>
         </div>
     </div>
 
@@ -745,14 +777,15 @@
             try {
                 const NativeBiometric = window.Capacitor.Plugins.NativeBiometric;
                 if (!NativeBiometric) return { success: false };
+                const L = translations[currentLang];
                 await NativeBiometric.verifyIdentity({
                     reason: title,
-                    title: 'احراز هویت',
-                    subtitle: 'برای تأیید از اثر انگشت استفاده کنید',
-                    description: 'اثر انگشت خود را روی سنسور بگذارید',
+                    title: L.bioAuthTitle,
+                    subtitle: L.bioAuthSubtitle,
+                    description: L.bioAuthDescription,
                     maxAttempts: 3,
                     useFallback: true,
-                    fallbackTitle: 'استفاده از رمز دستگاه',
+                    fallbackTitle: L.bioAuthFallback,
                 });
                 return { success: true };
             } catch (e) {
@@ -836,6 +869,7 @@
         selectedNFTImage: null,
         selectedNFTCollection: null,
         pendingTx: null,
+        lastHash: null,
     };
 
     let newMnemonic = '';
@@ -844,42 +878,328 @@
     let biometricAvailable = false;
 
     // ========================================
-    // TRANSLATIONS
+    // TRANSLATIONS - Complete
     // ========================================
     const translations = {
         fa: {
-            connecting: '🔌 در حال اتصال...', connected: '✅ متصل به Avalanche',
-            locked: '🔒 کیف پول قفل است', welcome: '👋 خوش آمدید',
-            error: '❌ خطا: ', notConnected: '❌ کیف پول متصل نیست',
-            loggedOut: '👋 خارج شدید', notConnectedAddr: '📋 کیف پول متصل نیست',
-            copy: 'کپی', gas: '⛽ موجودی AVAX (کارمزد)',
-            nfts: '🖼️ NFT ها', noNFT: '🎨 هیچ NFT در این کیف پول نیست',
-            select: 'انتخاب', recipient: 'آدرس گیرنده',
-            nftId: 'شناسه NFT', nftAmount: 'تعداد',
-            footer: '🦊 FoxEggs - آینده مالی غیرمتمرکز',
+            // Status
+            connecting: '🔌 در حال اتصال...',
+            connected: '✅ متصل به Avalanche',
+            locked: '🔒 کیف پول قفل است',
+            welcome: '👋 خوش آمدید',
+            notConnectedAddr: '📋 کیف پول متصل نیست',
+            loggedOut: '👋 خارج شدید',
+            
+            // UI Labels
+            copy: 'کپی',
+            gas: '⛽ موجودی AVAX (کارمزد)',
+            nfts: '🖼️ NFT ها',
+            sendNFT: '📤 انتقال NFT',
             txHistory: '📜 تاریخچه تراکنش ها',
-            noTx: 'هنوز تراکنشی ثبت نشده',
             settings: '⚙️ تنظیمات',
             management: '🔐 مدیریت',
-            seed: '🔑 ۱۲ کلمه', logout: '🚪 خروج',
+            
+            // Buttons
+            send: 'ارسال',
+            seed: '🔑 ۱۲ کلمه',
+            logout: '🚪 خروج',
+            openSettings: '⚙️ باز کردن تنظیمات',
+            select: 'انتخاب',
+            confirm: '✅ تأیید',
+            cancel: '❌ لغو',
+            close: '❌ بستن',
+            back: '🔙 بازگشت',
+            createWallet: '🆕 ساخت کیف پول جدید',
+            importWallet: '📥 وارد کردن کیف پول',
+            generate: '🔄 تولید کلمات',
+            create: '✅ ساخت کیف پول',
+            import: '✅ وارد کردن',
+            unlock: '🔓 باز کردن',
+            viewSeed: '🔓 مشاهده',
+            addWallet: '➕ افزودن کیف پول جدید',
+            addWalletToStorage: '✅ افزودن کیف پول',
+            addWalletImport: '✅ وارد کردن',
+            
+            // Placeholders
+            recipient: 'آدرس گیرنده',
+            nftId: 'شناسه NFT',
+            nftAmount: 'تعداد',
+            password: 'رمز عبور (حداقل ۶ کاراکتر)',
+            repeatPassword: 'تکرار رمز عبور',
+            enterPassword: 'رمز عبور خود را وارد کنید',
+            seedPlaceholder: '۱۲ کلمه را وارد کنید...',
+            generateClick: 'برای تولید کلیک کنید',
+            logoutPassPlaceholder: 'رمز عبور را وارد کنید',
+            
+            // Empty states
+            noNFT: '🎨 هیچ NFT در این کیف پول نیست',
+            noNFTInitial: 'برای مشاهده NFT، کیف پول را بسازید',
+            noTx: 'هنوز تراکنشی ثبت نشده',
+            noWallets: 'هیچ کیف پولی وجود ندارد',
+            
+            // Settings
+            settingsDesc: 'تنظیمات امنیتی و اپلیکیشن',
+            securitySection: '🔐 امنیت',
+            bioLoginTitle: '👆 ورود با اثر انگشت',
+            bioTxTitle: '🔓 تأیید تراکش با اثر انگشت',
+            bioTxDesc: 'قبل از ارسال NFT اثر انگشت بخواهد',
+            bioChecking: 'در حال بررسی...',
+            bioEnabled: '✅ فعال',
+            bioDisabled: 'غیرفعال',
+            bioNotSupported: 'غیرفعال (پشتیبانی نمی‌شود)',
+            bioTelegramWarning: '⚠️ Telegram Mini App از اثر انگشت پشتیبانی نمی‌کند. از نسخه APK استفاده کنید.',
+            bioWebWarning: '⚠️ در مرورگر وب پشتیبانی نمی‌شود. از نسخه APK استفاده کنید.',
+            bioDeviceWarning: '⚠️ دستگاه شما سنسور اثر انگشت ندارد یا تنظیم نشده است.',
+            
+            // Modal titles
+            loginTitle: '🦊 FoxEggs',
+            loginDesc: 'به کیف پول خود خوش آمدید',
+            addWalletTitle: '➕ افزودن کیف پول جدید',
+            addWalletDesc: 'یک کیف پول جدید بسازید یا وارد کنید',
+            logoutTitle: '🚪 خروج از کیف پول',
+            logoutDesc: 'برای خروج، رمز عبور خود را وارد کنید',
+            seedTitle: '🔑 ۱۲ کلمه بازیابی',
+            seedWarning: '⚠️ این کلمات را با هیچکس به اشتراک نگذارید!',
+            createWarning: '⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!',
+            importWarning: '⚠️ ۱۲ کلمه کیف پول خود را وارد کنید',
+            
+            // Confirm TX
+            confirmTxTitle: 'تأیید ارسال NFT',
+            confirmTxSub: 'برای ارسال، دکمه تأیید را بزنید',
+            confirmTxSubBio: 'برای ارسال، اثر انگشت خود را بزنید',
+            confirmNFT: 'NFT:',
+            confirmAmount: 'تعداد:',
+            confirmTo: 'به:',
+            confirmBiometric: '👆 تأیید با اثر انگشت',
+            confirmSimple: '✅ تأیید و ارسال',
+            
+            // Success Modal
+            successTitle: 'ارسال موفق!',
+            successSub: 'NFT با موفقیت ارسال شد',
+            detailTokenId: '🆔 شناسه:',
+            detailAmount: '📦 تعداد ارسالی:',
+            detailFrom: '📤 از:',
+            detailTo: '📥 به:',
+            detailGas: '⛽ کارمزد:',
+            detailTime: '🕐 زمان:',
+            detailHash: '🔗 هش:',
+            
+            // TX Detail Modal
+            txDetailTitle: '📜 جزئیات تراکنش',
+            txDetailSub: 'اطلاعات کامل تراکنش شما',
+            txDetailAmount: '📦 تعداد:',
+            
+            // Biometric prompts
+            bioAuthTitle: 'احراز هویت',
+            bioAuthSubtitle: 'برای تأیید از اثر انگشت استفاده کنید',
+            bioAuthDescription: 'اثر انگشت خود را روی سنسور بگذارید',
+            bioAuthFallback: 'استفاده از رمز دستگاه',
+            bioLoginPrompt: 'ورود به FoxEggs Wallet',
+            bioEnablePrompt: 'تأیید فعال‌سازی اثر انگشت',
+            bioTxPrompt: 'تأیید ارسال NFT',
+            
+            // Toasts
+            copied: '✅ آدرس کپی شد',
+            hashCopied: '✅ هش تراکنش کپی شد',
+            seedGenerated: '✅ ۱۲ کلمه ساخته شد',
+            generateFirst: 'ابتدا کلمات را تولید کنید',
+            passMin: 'رمز باید حداقل ۶ کاراکتر باشد',
+            passMatch: 'رمزها مطابقت ندارند',
+            passWrong: '❌ رمز اشتباه است',
+            invalidAddress: '❌ آدرس معتبر نیست',
+            invalidNFT: '❌ شناسه NFT معتبر وارد کنید',
+            selectNFTFirst: '❌ ابتدا یک NFT را انتخاب کنید',
+            cantSendToSelf: '❌ نمی‌توانید به خودتان ارسال کنید',
+            nftSent: '✅ NFT ارسال شد!',
+            txConfirmed: '✅ تراکنش تأیید شد',
+            txCancelled: 'تراکنش لغو شد',
+            sending: '🔄 در حال ارسال...',
+            waitingNetwork: '⏳ در انتظار تأیید شبکه...',
+            sendingError: '❌ خطا در ارسال',
+            unencryptedError: '❌ رمز اشتباه است',
+            switchSuccess: '🔄 سوئیچ شد',
+            walletDeleted: '🗑️ حذف شد',
+            deleteConfirm: 'از حذف این کیف پول مطمئن هستید؟',
+            walletAdded: '✅ کیف پول اضافه شد',
+            walletCreated: '🎉 کیف پول ساخته شد',
+            walletImported: '🎉 کیف پول وارد شد',
+            walletUnlocked: '🔓 کیف پول باز شد',
+            openWalletFirst: '❌ اول کیف پول را باز کنید',
+            bioEnabledToast: '✅ اثر انگشت فعال شد',
+            bioDisabledToast: '🔓 اثر انگشت غیرفعال شد',
+            bioTxEnabled: '✅ تأیید تراکنش با اثر انگشت فعال شد',
+            bioTxDisabled: '🔓 تأیید تراکنش غیرفعال شد',
+            bioFailed: '❌ احراز هویت ناموفق',
+            bioSaveError: '❌ خطا در ذخیره‌سازی',
+            bioNotSupportedToast: '❌ دستگاه پشتیبانی نمی‌کند',
+            bioInfoNotFound: '❌ اطلاعات ذخیره‌شده پیدا نشد',
+            waitingFingerprint: '👆 در انتظار اثر انگشت...',
+            fingerprintLogin: '👆 ورود با اثر انگشت',
+            
+            // Confirm logout
+            confirmLogout: '✅ تأیید خروج',
         },
         en: {
-            connecting: '🔌 Connecting...', connected: '✅ Connected',
-            locked: '🔒 Wallet locked', welcome: '👋 Welcome',
-            error: '❌ Error: ', notConnected: '❌ Not connected',
-            loggedOut: '👋 Logged out', notConnectedAddr: '📋 Not connected',
-            copy: 'Copy', gas: '⛽ AVAX Balance',
-            nfts: '🖼️ NFTs', noNFT: '🎨 No NFTs',
-            select: 'Select', recipient: 'Recipient',
-            nftId: 'NFT ID', nftAmount: 'Qty',
-            footer: '🦊 FoxEggs - The Future of DeFi',
+            // Status
+            connecting: '🔌 Connecting...',
+            connected: '✅ Connected to Avalanche',
+            locked: '🔒 Wallet is locked',
+            welcome: '👋 Welcome',
+            notConnectedAddr: '📋 Wallet not connected',
+            loggedOut: '👋 Logged out',
+            
+            // UI Labels
+            copy: 'Copy',
+            gas: '⛽ AVAX Balance (Gas)',
+            nfts: '🖼️ NFTs',
+            sendNFT: '📤 Send NFT',
             txHistory: '📜 Transaction History',
-            noTx: 'No transactions yet',
             settings: '⚙️ Settings',
             management: '🔐 Management',
-            seed: '🔑 12 Words', logout: '🚪 Logout',
+            
+            // Buttons
+            send: 'Send',
+            seed: '🔑 12 Words',
+            logout: '🚪 Logout',
+            openSettings: '⚙️ Open Settings',
+            select: 'Select',
+            confirm: '✅ Confirm',
+            cancel: '❌ Cancel',
+            close: '❌ Close',
+            back: '🔙 Back',
+            createWallet: '🆕 Create New Wallet',
+            importWallet: '📥 Import Wallet',
+            generate: '🔄 Generate Words',
+            create: '✅ Create Wallet',
+            import: '✅ Import',
+            unlock: '🔓 Unlock',
+            viewSeed: '🔓 View',
+            addWallet: '➕ Add New Wallet',
+            addWalletToStorage: '✅ Add Wallet',
+            addWalletImport: '✅ Import',
+            
+            // Placeholders
+            recipient: 'Recipient Address',
+            nftId: 'NFT ID',
+            nftAmount: 'Qty',
+            password: 'Password (min 6 chars)',
+            repeatPassword: 'Repeat Password',
+            enterPassword: 'Enter your password',
+            seedPlaceholder: 'Enter 12 words...',
+            generateClick: 'Click to generate',
+            logoutPassPlaceholder: 'Enter your password',
+            
+            // Empty states
+            noNFT: '🎨 No NFTs in this wallet',
+            noNFTInitial: 'Create a wallet to view NFTs',
+            noTx: 'No transactions yet',
+            noWallets: 'No wallets available',
+            
+            // Settings
+            settingsDesc: 'Security and app settings',
+            securitySection: '🔐 Security',
+            bioLoginTitle: '👆 Fingerprint Login',
+            bioTxTitle: '🔓 Confirm TX with Fingerprint',
+            bioTxDesc: 'Ask for fingerprint before NFT transfer',
+            bioChecking: 'Checking...',
+            bioEnabled: '✅ Enabled',
+            bioDisabled: 'Disabled',
+            bioNotSupported: 'Disabled (not supported)',
+            bioTelegramWarning: '⚠️ Telegram Mini App does not support biometrics. Use the APK version.',
+            bioWebWarning: '⚠️ Not supported in web browser. Use the APK version.',
+            bioDeviceWarning: '⚠️ Your device has no fingerprint sensor or it is not set up.',
+            
+            // Modal titles
+            loginTitle: '🦊 FoxEggs',
+            loginDesc: 'Welcome to your wallet',
+            addWalletTitle: '➕ Add New Wallet',
+            addWalletDesc: 'Create or import a new wallet',
+            logoutTitle: '🚪 Logout from Wallet',
+            logoutDesc: 'Enter your password to logout',
+            seedTitle: '🔑 12 Recovery Words',
+            seedWarning: '⚠️ Never share these words with anyone!',
+            createWarning: '⚠️ Save these 12 words in a safe place!',
+            importWarning: '⚠️ Enter your 12 wallet words',
+            
+            // Confirm TX
+            confirmTxTitle: 'Confirm NFT Send',
+            confirmTxSub: 'Press confirm to send',
+            confirmTxSubBio: 'Place your finger on the sensor to send',
+            confirmNFT: 'NFT:',
+            confirmAmount: 'Amount:',
+            confirmTo: 'To:',
+            confirmBiometric: '👆 Confirm with Fingerprint',
+            confirmSimple: '✅ Confirm and Send',
+            
+            // Success Modal
+            successTitle: 'Sent Successfully!',
+            successSub: 'NFT sent successfully',
+            detailTokenId: '🆔 ID:',
+            detailAmount: '📦 Amount:',
+            detailFrom: '📤 From:',
+            detailTo: '📥 To:',
+            detailGas: '⛽ Gas:',
+            detailTime: '🕐 Time:',
+            detailHash: '🔗 Hash:',
+            
+            // TX Detail Modal
+            txDetailTitle: '📜 Transaction Details',
+            txDetailSub: 'Complete info of your transaction',
+            txDetailAmount: '📦 Amount:',
+            
+            // Biometric prompts
+            bioAuthTitle: 'Authentication',
+            bioAuthSubtitle: 'Use fingerprint to confirm',
+            bioAuthDescription: 'Place your finger on the sensor',
+            bioAuthFallback: 'Use device password',
+            bioLoginPrompt: 'Login to FoxEggs Wallet',
+            bioEnablePrompt: 'Confirm fingerprint enable',
+            bioTxPrompt: 'Confirm NFT Send',
+            
+            // Toasts
+            copied: '✅ Address copied',
+            hashCopied: '✅ Transaction hash copied',
+            seedGenerated: '✅ 12 words generated',
+            generateFirst: 'Generate words first',
+            passMin: 'Password must be at least 6 characters',
+            passMatch: 'Passwords do not match',
+            passWrong: '❌ Wrong password',
+            invalidAddress: '❌ Invalid address',
+            invalidNFT: '❌ Enter valid NFT ID',
+            selectNFTFirst: '❌ Please select an NFT first',
+            cantSendToSelf: '❌ Cannot send to yourself',
+            nftSent: '✅ NFT sent!',
+            txConfirmed: '✅ Transaction confirmed',
+            txCancelled: 'Transaction cancelled',
+            sending: '🔄 Sending...',
+            waitingNetwork: '⏳ Waiting for network confirmation...',
+            sendingError: '❌ Sending error',
+            unencryptedError: '❌ Wrong password',
+            switchSuccess: '🔄 Switched',
+            walletDeleted: '🗑️ Deleted',
+            deleteConfirm: 'Are you sure you want to delete this wallet?',
+            walletAdded: '✅ Wallet added',
+            walletCreated: '🎉 Wallet created',
+            walletImported: '🎉 Wallet imported',
+            walletUnlocked: '🔓 Wallet unlocked',
+            openWalletFirst: '❌ Open wallet first',
+            bioEnabledToast: '✅ Biometric enabled',
+            bioDisabledToast: '🔓 Biometric disabled',
+            bioTxEnabled: '✅ TX fingerprint confirmation enabled',
+            bioTxDisabled: '🔓 TX fingerprint confirmation disabled',
+            bioFailed: '❌ Authentication failed',
+            bioSaveError: '❌ Save error',
+            bioNotSupportedToast: '❌ Device not supported',
+            bioInfoNotFound: '❌ Saved info not found',
+            waitingFingerprint: '👆 Waiting for fingerprint...',
+            fingerprintLogin: '👆 Login with Fingerprint',
+            
+            // Confirm logout
+            confirmLogout: '✅ Confirm Logout',
         }
     };
+
+    function t(key) { return translations[currentLang][key] || key; }
 
     function toggleLanguage() {
         currentLang = currentLang === 'fa' ? 'en' : 'fa';
@@ -889,21 +1209,166 @@
         updateUI();
     }
 
-    function t(key) { return translations[currentLang][key] || key; }
-
+    // ========================================
+    // UI UPDATE - Apply all translations
+    // ========================================
     function updateUI() {
-        document.getElementById('footerText').textContent = t('footer');
-        document.getElementById('txHistoryLabel').textContent = t('txHistory');
-        document.getElementById('settingsLabel').textContent = t('settings');
-        document.getElementById('managementLabel').textContent = t('management');
+        const L = translations[currentLang];
         
-        updateWalletDropdown();
+        // Header
+        document.getElementById('walletSelectorBtn').textContent = currentLang === 'fa' ? '👛 کیف پول‌ها' : '👛 Wallets';
+        document.getElementById('addWalletBtnText').textContent = L.addWallet;
+        
+        // Status (only if not connected)
+        const statusEl = document.getElementById('status');
+        if (statusEl.classList.contains('success') && state.address && state.unlocked) {
+            statusEl.textContent = L.connected;
+        } else if (statusEl.classList.contains('info') && state.address && !state.unlocked) {
+            statusEl.textContent = L.locked;
+        }
+        
+        // Address
         if (state.address) {
             document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(state.address);
         } else {
-            document.getElementById('addressDisplay').textContent = t('notConnectedAddr');
+            document.getElementById('addressDisplay').textContent = L.notConnectedAddr;
         }
-        if (state.provider && state.address && state.unlocked) status(t('connected'), 'success');
+        document.getElementById('copyLabel').textContent = L.copy;
+        
+        // Balance
+        document.getElementById('gasLabel').textContent = L.gas;
+        
+        // Section titles
+        document.getElementById('nftListLabel').textContent = L.nfts;
+        document.getElementById('sendNFTLabel').textContent = L.sendNFT;
+        document.getElementById('txHistoryLabel').textContent = L.txHistory;
+        document.getElementById('settingsLabel').textContent = L.settings;
+        document.getElementById('managementLabel').textContent = L.management;
+        
+        // Send NFT
+        document.getElementById('nftSendTo').placeholder = L.recipient;
+        document.getElementById('nftId').placeholder = L.nftId;
+        document.getElementById('nftAmount').placeholder = L.nftAmount;
+        document.getElementById('nftSendBtn').textContent = L.send;
+        
+        // Settings button
+        document.getElementById('openSettingsBtn').textContent = L.openSettings;
+        
+        // Management buttons
+        document.getElementById('seedBtn').textContent = L.seed;
+        document.getElementById('logoutBtn').textContent = L.logout;
+        
+        // Footer
+        document.getElementById('footerText').textContent = L.footer || (currentLang === 'fa' ? '🦊 FoxEggs - آینده مالی غیرمتمرکز' : '🦊 FoxEggs - The Future of DeFi');
+        
+        // Empty states
+        if (document.getElementById('emptyNFTMsg')) document.getElementById('emptyNFTMsg').textContent = L.noNFTInitial;
+        if (document.getElementById('emptyTxMsg')) document.getElementById('emptyTxMsg').textContent = L.noTx;
+        
+        // Confirm modal
+        document.getElementById('confirmTitleText').textContent = L.confirmTxTitle;
+        document.getElementById('confirmNFTLabel').textContent = L.confirmNFT;
+        document.getElementById('confirmAmountLabel').textContent = L.confirmAmount;
+        document.getElementById('confirmToLabel').textContent = L.confirmTo;
+        document.getElementById('confirmBiometricBtn').textContent = L.confirmBiometric;
+        document.getElementById('confirmSimpleBtn').textContent = L.confirmSimple;
+        document.getElementById('confirmCancelBtn').textContent = L.cancel;
+        
+        // Success modal
+        document.getElementById('successTitleText').textContent = L.successTitle;
+        document.getElementById('successSubText').textContent = L.successSub;
+        document.getElementById('successTokenIdLabel').textContent = L.detailTokenId;
+        document.getElementById('successAmountLabel').textContent = L.detailAmount;
+        document.getElementById('successFromLabel').textContent = L.detailFrom;
+        document.getElementById('successToLabel').textContent = L.detailTo;
+        document.getElementById('successGasLabel').textContent = L.detailGas;
+        document.getElementById('successTimeLabel').textContent = L.detailTime;
+        document.getElementById('successHashLabel').textContent = L.detailHash;
+        document.getElementById('successConfirmBtn').textContent = L.confirm;
+        
+        // TX Detail modal
+        document.getElementById('txDetailTitleText').textContent = L.txDetailTitle;
+        document.getElementById('txDetailSubText').textContent = L.txDetailSub;
+        document.getElementById('detailTokenIdLabel').textContent = L.detailTokenId;
+        document.getElementById('detailAmountLabel').textContent = L.txDetailAmount;
+        document.getElementById('detailFromLabel').textContent = L.detailFrom;
+        document.getElementById('detailToLabel').textContent = L.detailTo;
+        document.getElementById('detailGasLabel').textContent = L.detailGas;
+        document.getElementById('detailTimeLabel').textContent = L.detailTime;
+        document.getElementById('detailHashLabel').textContent = L.detailHash;
+        document.getElementById('txDetailCloseBtn').textContent = L.close;
+        
+        // Settings modal
+        document.getElementById('settingsTitleText').textContent = L.settings;
+        document.getElementById('settingsDescText').textContent = L.settingsDesc;
+        document.getElementById('securitySectionLabel').textContent = L.securitySection;
+        document.getElementById('bioLoginTitle').textContent = L.bioLoginTitle;
+        document.getElementById('bioTxTitle').textContent = L.bioTxTitle;
+        document.getElementById('bioTxDesc').textContent = L.bioTxDesc;
+        document.getElementById('settingsCloseBtn').textContent = L.close;
+        updateBioStatus();
+        updateTxBioStatus();
+        
+        // Add Wallet modal
+        document.getElementById('addWalletTitle').textContent = L.addWalletTitle;
+        document.getElementById('addWalletDesc').textContent = L.addWalletDesc;
+        document.getElementById('addCreateBtn').textContent = L.createWallet;
+        document.getElementById('addImportBtn').textContent = L.importWallet;
+        document.getElementById('addCancelBtn').textContent = L.cancel;
+        document.getElementById('addCreateWarning').textContent = L.createWarning;
+        document.getElementById('addImportWarning').textContent = L.importWarning;
+        document.getElementById('addNewSeed').textContent = L.generateClick;
+        document.getElementById('addGenBtn').textContent = L.generate;
+        document.getElementById('addCreatePass').placeholder = L.password;
+        document.getElementById('addCreatePass2').placeholder = L.repeatPassword;
+        document.getElementById('addSubmitBtn').textContent = L.addWalletToStorage;
+        document.getElementById('addBackBtn').textContent = L.back;
+        document.getElementById('addImportSeed').placeholder = L.seedPlaceholder;
+        document.getElementById('addImportPass').placeholder = L.password;
+        document.getElementById('addImportPass2').placeholder = L.repeatPassword;
+        document.getElementById('addImportSubmitBtn').textContent = L.addWalletImport;
+        document.getElementById('addImportBackBtn').textContent = L.back;
+        
+        // Login modal
+        document.getElementById('loginTitle').textContent = L.loginTitle;
+        document.getElementById('loginDesc').textContent = L.loginDesc;
+        document.getElementById('loginCreateBtn').textContent = L.createWallet;
+        document.getElementById('loginImportBtn').textContent = L.importWallet;
+        document.getElementById('createWarning').textContent = L.createWarning;
+        document.getElementById('importWarning').textContent = L.importWarning;
+        document.getElementById('newSeed').textContent = L.generateClick;
+        document.getElementById('genSeedBtn').textContent = L.generate;
+        document.getElementById('createPass').placeholder = L.password;
+        document.getElementById('createPass2').placeholder = L.repeatPassword;
+        document.getElementById('createSubmitBtn').textContent = L.create;
+        document.getElementById('createBackBtn').textContent = L.back;
+        document.getElementById('importSeed').placeholder = L.seedPlaceholder;
+        document.getElementById('importPass').placeholder = L.password;
+        document.getElementById('importPass2').placeholder = L.repeatPassword;
+        document.getElementById('importSubmitBtn').textContent = L.import;
+        document.getElementById('importBackBtn').textContent = L.back;
+        document.getElementById('unlockPass').placeholder = L.enterPassword;
+        document.getElementById('unlockBtn').textContent = L.unlock;
+        document.getElementById('fingerprintUnlockBtn').textContent = L.fingerprintLogin;
+        
+        // Logout modal
+        document.getElementById('logoutTitle').textContent = L.logoutTitle;
+        document.getElementById('logoutDesc').textContent = L.logoutDesc;
+        document.getElementById('logoutPass').placeholder = L.logoutPassPlaceholder;
+        document.getElementById('logoutConfirmBtn').textContent = L.confirmLogout;
+        document.getElementById('logoutCancelBtn').textContent = L.cancel;
+        
+        // Seed modal
+        document.getElementById('seedTitle').textContent = L.seedTitle;
+        document.getElementById('seedWarning').textContent = L.seedWarning;
+        document.getElementById('seedViewPass').placeholder = L.enterPassword;
+        document.getElementById('seedViewBtn').textContent = L.viewSeed;
+        document.getElementById('seedCloseBtn').textContent = L.close;
+        
+        // Wallet dropdown
+        updateWalletDropdown();
+        
+        // Transaction history
         renderTxHistory();
     }
 
@@ -924,8 +1389,9 @@
     function updateWalletDropdown() {
         const container = document.getElementById('walletList');
         if (!container) return;
+        const L = translations[currentLang];
         if (state.wallets.length === 0) {
-            container.innerHTML = `<div class="wallet-item" style="color:#4a5a6a;justify-content:center;">هیچ کیف پولی وجود ندارد</div>`;
+            container.innerHTML = `<div class="wallet-item" style="color:#4a5a6a;justify-content:center;">${L.noWallets}</div>`;
             return;
         }
         let html = '';
@@ -965,8 +1431,8 @@
                 state.selectedNFTId = null;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(wallet.address);
                 document.getElementById('walletDropdown').classList.remove('show');
-                status('🔄 سوئیچ شد', 'success');
-                toast('🔄 سوئیچ شد');
+                status(t('switchSuccess'), 'success');
+                toast(t('switchSuccess'));
                 refreshAll();
                 return;
             }
@@ -977,7 +1443,7 @@
     }
 
     function deleteWallet(index) {
-        if (!confirm('از حذف این کیف پول مطمئن هستید؟')) return;
+        if (!confirm(t('deleteConfirm'))) return;
         state.wallets.splice(index, 1);
         if (state.activeWalletIndex === index) {
             state.activeWalletIndex = -1;
@@ -994,12 +1460,12 @@
         }
         saveWallets();
         updateWalletDropdown();
-        toast('🗑️ حذف شد', 'info');
+        toast(t('walletDeleted'), 'info');
     }
 
     function addWalletToStorage(address, encryptedSeed) {
         const exists = state.wallets.some(w => w.address === address);
-        if (exists) { toast('⚠️ این کیف پول قبلاً اضافه شده است', 'error'); return false; }
+        if (exists) { toast('⚠️', 'error'); return false; }
         state.wallets.push({ address, encryptedSeed });
         state.activeWalletIndex = state.wallets.length - 1;
         state.address = address;
@@ -1101,14 +1567,42 @@
         document.getElementById('detailTo').title = tx.to;
         document.getElementById('detailGas').textContent = tx.gasFee + ' AVAX';
         document.getElementById('detailTime').textContent = new Date(tx.timestamp).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
-        document.getElementById('detailHash').textContent = tx.hash.slice(0, 10) + '...' + tx.hash.slice(-8);
+        document.getElementById('detailHash').textContent = tx.hash.slice(0, 12) + '...' + tx.hash.slice(-8);
         document.getElementById('detailHash').title = tx.hash;
+        state.lastHash = tx.hash;
         
         document.getElementById('txDetailModal').classList.remove('closed');
     }
 
     function closeTxDetailModal() {
         document.getElementById('txDetailModal').classList.add('closed');
+    }
+
+    // ========================================
+    // COPY HASH FUNCTIONS
+    // ========================================
+    function copySuccessHash() {
+        const hashEl = document.getElementById('successHash');
+        const hash = state.lastHash || hashEl.title;
+        if (hash && hash !== '-') {
+            navigator.clipboard.writeText(hash).then(() => {
+                toast(t('hashCopied'));
+            }).catch(() => {
+                toast(t('hashCopied'));
+            });
+        }
+    }
+
+    function copyDetailHash() {
+        const hashEl = document.getElementById('detailHash');
+        const hash = state.lastHash || hashEl.title;
+        if (hash && hash !== '-') {
+            navigator.clipboard.writeText(hash).then(() => {
+                toast(t('hashCopied'));
+            }).catch(() => {
+                toast(t('hashCopied'));
+            });
+        }
     }
 
     // ========================================
@@ -1133,16 +1627,16 @@
         if (!biometricAvailable) {
             toggle.disabled = true;
             toggle.checked = false;
-            statusText.textContent = 'غیرفعال (پشتیبانی نمی‌شود)';
+            statusText.textContent = t('bioNotSupported');
             statusText.style.color = '#e94560';
             warning.style.display = 'block';
             
             if (isTelegram) {
-                warning.textContent = '⚠️ Telegram Mini App از اثر انگشت پشتیبانی نمی‌کند. از نسخه APK استفاده کنید.';
+                warning.textContent = t('bioTelegramWarning');
             } else if (!isNative) {
-                warning.textContent = '⚠️ در مرورگر وب پشتیبانی نمی‌شود. از نسخه APK استفاده کنید.';
+                warning.textContent = t('bioWebWarning');
             } else {
-                warning.textContent = '⚠️ دستگاه شما سنسور اثر انگشت ندارد یا تنظیم نشده است.';
+                warning.textContent = t('bioDeviceWarning');
             }
             return;
         }
@@ -1152,10 +1646,10 @@
         warning.style.display = 'none';
         
         if (enabled) {
-            statusText.textContent = '✅ فعال';
+            statusText.textContent = t('bioEnabled');
             statusText.style.color = '#4ade80';
         } else {
-            statusText.textContent = 'غیرفعال';
+            statusText.textContent = t('bioDisabled');
             statusText.style.color = '#8a9bb5';
         }
     }
@@ -1171,22 +1665,22 @@
         const toggle = document.getElementById('bioToggle');
         
         if (!biometricAvailable) {
-            toast('❌ دستگاه پشتیبانی نمی‌کند', 'error');
+            toast(t('bioNotSupportedToast'), 'error');
             toggle.checked = false;
             return;
         }
         
         if (!state.unlocked || !state.currentPassword) {
-            toast('❌ اول کیف پول را باز کنید', 'error');
+            toast(t('openWalletFirst'), 'error');
             toggle.checked = false;
             return;
         }
         
         if (toggle.checked) {
-            const verify = await BiometricAuth.verify('تأیید فعال‌سازی اثر انگشت');
+            const verify = await BiometricAuth.verify(t('bioEnablePrompt'));
             
             if (!verify.success) {
-                toast('❌ احراز هویت ناموفق', 'error');
+                toast(t('bioFailed'), 'error');
                 toggle.checked = false;
                 return;
             }
@@ -1198,15 +1692,15 @@
             
             if (saved) {
                 localStorage.setItem('foxBiometricEnabled', 'true');
-                toast('✅ اثر انگشت فعال شد');
+                toast(t('bioEnabledToast'));
             } else {
-                toast('❌ خطا در ذخیره‌سازی', 'error');
+                toast(t('bioSaveError'), 'error');
                 toggle.checked = false;
             }
         } else {
             await BiometricAuth.deleteCredentials();
             localStorage.removeItem('foxBiometricEnabled');
-            toast('🔓 اثر انگشت غیرفعال شد', 'info');
+            toast(t('bioDisabledToast'), 'info');
         }
         
         updateBioStatus();
@@ -1217,15 +1711,15 @@
         
         if (toggle.checked) {
             localStorage.setItem('foxTxBiometricEnabled', 'true');
-            toast('✅ تأیید تراکنش با اثر انگشت فعال شد');
+            toast(t('bioTxEnabled'));
         } else {
             localStorage.removeItem('foxTxBiometricEnabled');
-            toast('🔓 تأیید تراکنش غیرفعال شد', 'info');
+            toast(t('bioTxDisabled'), 'info');
         }
     }
 
     // ========================================
-    // BIOMETRIC (initial check)
+    // BIOMETRIC
     // ========================================
     async function checkBiometricSupport() {
         const result = await BiometricAuth.checkAvailability();
@@ -1237,12 +1731,12 @@
         const enabled = localStorage.getItem('foxBiometricEnabled') === 'true';
         if (!enabled || !biometricAvailable) return false;
         
-        const result = await BiometricAuth.verify('ورود به FoxEggs Wallet');
+        const result = await BiometricAuth.verify(t('bioLoginPrompt'));
         if (!result.success) return false;
         
         const creds = await BiometricAuth.getCredentials();
         if (!creds || !creds.password) {
-            toast('❌ اطلاعات ذخیره‌شده پیدا نشد', 'error');
+            toast(t('bioInfoNotFound'), 'error');
             return false;
         }
         
@@ -1265,7 +1759,7 @@
         document.getElementById('addWalletOptions').classList.remove('hidden');
         document.getElementById('addCreateSection').classList.add('hidden');
         document.getElementById('addImportSection').classList.add('hidden');
-        document.getElementById('addNewSeed').textContent = 'برای تولید کلیک کنید';
+        document.getElementById('addNewSeed').textContent = t('generateClick');
         addNewMnemonic = '';
         document.getElementById('addCreatePass').value = '';
         document.getElementById('addCreatePass2').value = '';
@@ -1296,16 +1790,16 @@
             const wallet = ethers.Wallet.createRandom();
             addNewMnemonic = wallet.mnemonic.phrase;
             document.getElementById('addNewSeed').textContent = addNewMnemonic;
-            toast('✅ ۱۲ کلمه ساخته شد');
+            toast(t('seedGenerated'));
         } catch (e) { toast('❌ ' + e.message, 'error'); }
     }
 
     async function addCreateWallet() {
         const pass = document.getElementById('addCreatePass').value;
         const pass2 = document.getElementById('addCreatePass2').value;
-        if (!addNewMnemonic) { toast('ابتدا کلمات را تولید کنید', 'error'); return; }
-        if (pass.length < 6) { toast('رمز باید حداقل ۶ کاراکتر باشد', 'error'); return; }
-        if (pass !== pass2) { toast('رمزها مطابقت ندارند', 'error'); return; }
+        if (!addNewMnemonic) { toast(t('generateFirst'), 'error'); return; }
+        if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+        if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
         try {
             const wallet = ethers.Wallet.fromMnemonic(addNewMnemonic);
             const addr = wallet.address;
@@ -1316,8 +1810,8 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('addWalletModal').classList.add('closed');
-                status('✅ کیف پول اضافه شد', 'success');
-                toast('✅ کیف پول اضافه شد');
+                status(t('walletAdded'), 'success');
+                toast(t('walletAdded'));
                 await refreshAll();
             }
         } catch (e) { toast('❌ ' + e.message, 'error'); }
@@ -1327,9 +1821,9 @@
         const seed = document.getElementById('addImportSeed').value.trim();
         const pass = document.getElementById('addImportPass').value;
         const pass2 = document.getElementById('addImportPass2').value;
-        if (!seed) { toast('۱۲ کلمه را وارد کنید', 'error'); return; }
-        if (pass.length < 6) { toast('رمز باید حداقل ۶ کاراکتر باشد', 'error'); return; }
-        if (pass !== pass2) { toast('رمزها مطابقت ندارند', 'error'); return; }
+        if (!seed) { toast(t('seedPlaceholder'), 'error'); return; }
+        if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+        if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
         try {
             const wallet = ethers.Wallet.fromMnemonic(seed);
             const addr = wallet.address;
@@ -1340,18 +1834,18 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('addWalletModal').classList.add('closed');
-                status('✅ کیف پول اضافه شد', 'success');
-                toast('✅ کیف پول اضافه شد');
+                status(t('walletAdded'), 'success');
+                toast(t('walletAdded'));
                 await refreshAll();
             }
-        } catch (e) { toast('❌ رمز اشتباه است', 'error'); }
+        } catch (e) { toast(t('passWrong'), 'error'); }
     }
 
     // ========================================
     // LOGOUT
     // ========================================
     function showLogoutModal() {
-        if (!state.address) { toast('❌ کیف پول متصل نیست', 'error'); return; }
+        if (!state.address) { toast(t('notConnected'), 'error'); return; }
         document.getElementById('logoutModal').classList.remove('closed');
         document.getElementById('logoutPass').value = '';
     }
@@ -1359,7 +1853,7 @@
 
     function confirmLogout() {
         const pass = document.getElementById('logoutPass').value;
-        if (!pass) { toast('رمز عبور را وارد کنید', 'error'); return; }
+        if (!pass) { toast(t('enterPassword'), 'error'); return; }
         try {
             decrypt(state.encryptedSeed, pass);
             state.address = null;
@@ -1383,7 +1877,7 @@
             document.getElementById('createSection').classList.add('hidden');
             document.getElementById('importSection').classList.add('hidden');
         } catch (e) {
-            toast('❌ رمز اشتباه است', 'error');
+            toast(t('passWrong'), 'error');
             document.getElementById('logoutPass').value = '';
         }
     }
@@ -1421,11 +1915,11 @@
                 r += String.fromCharCode(t.charCodeAt(i) ^ pass.charCodeAt(i % pass.length));
             }
             return r;
-        } catch (e) { throw new Error('رمز اشتباه است'); }
+        } catch (e) { throw new Error('Wrong password'); }
     }
 
     function shortAddr(a) {
-        if (!a) return 'وارد نشده';
+        if (!a) return currentLang === 'fa' ? 'وارد نشده' : 'N/A';
         return a.slice(0, 6) + '...' + a.slice(-4);
     }
 
@@ -1439,7 +1933,7 @@
         state.selectedNFTImage = image;
         state.selectedNFTCollection = collection;
         document.getElementById('nftId').value = id;
-        toast('✅ ' + name + ' انتخاب شد');
+        toast('✅ ' + name);
     }
 
     // ========================================
@@ -1448,7 +1942,7 @@
     async function loadAllNFTs() {
         if (!state.address) { status(t('notConnected'), 'error'); return; }
         try {
-            status('🔄 در حال دریافت NFT ها...', 'info');
+            status(currentLang === 'fa' ? '🔄 در حال دریافت NFT ها...' : '🔄 Loading NFTs...', 'info');
             let allNFTs = [];
 
             for (const contractInfo of CONFIG.nftContracts) {
@@ -1476,9 +1970,9 @@
             }
 
             renderNFTs(allNFTs);
-            status('✅ NFT ها بروزرسانی شدند', 'success');
+            status(currentLang === 'fa' ? '✅ NFT ها بروزرسانی شدند' : '✅ NFTs updated', 'success');
         } catch (e) {
-            status('❌ خطا: ' + e.message, 'error');
+            status('❌ ' + e.message, 'error');
         }
     }
 
@@ -1525,7 +2019,7 @@
     // ========================================
     function startSendNFT() {
         if (!state.signer) {
-            toast('❌ کیف پول باز نیست', 'error');
+            toast(t('openWalletFirst'), 'error');
             return;
         }
         
@@ -1534,11 +2028,11 @@
         const amount = parseInt(document.getElementById('nftAmount').value) || 1;
         const contractAddress = state.selectedNFTContract;
 
-        if (!to || !ethers.utils.isAddress(to)) { toast('❌ آدرس معتبر نیست', 'error'); return; }
-        if (!contractAddress) { toast('❌ ابتدا یک NFT را انتخاب کنید', 'error'); return; }
-        if (!id || id <= 0) { toast('❌ شناسه NFT معتبر وارد کنید', 'error'); return; }
+        if (!to || !ethers.utils.isAddress(to)) { toast(t('invalidAddress'), 'error'); return; }
+        if (!contractAddress) { toast(t('selectNFTFirst'), 'error'); return; }
+        if (!id || id <= 0) { toast(t('invalidNFT'), 'error'); return; }
         if (to.toLowerCase() === state.address.toLowerCase()) {
-            toast('❌ نمی‌توانید به خودتان ارسال کنید', 'error');
+            toast(t('cantSendToSelf'), 'error');
             return;
         }
         
@@ -1552,13 +2046,11 @@
             collection: state.selectedNFTCollection || 'Unknown'
         };
         
-        // پر کردن اطلاعات تأیید
         document.getElementById('confirmNFTName').textContent = state.pendingTx.nftName;
         document.getElementById('confirmAmount').textContent = '×' + amount;
         document.getElementById('confirmTo').textContent = to.slice(0, 10) + '...' + to.slice(-8);
         document.getElementById('confirmTo').title = to;
         
-        // 🔑 منطق جدید: اگه تأیید تراکنش با اثر انگشت فعاله، فقط دکمه اثر انگشت نشون بده
         const txBioEnabled = localStorage.getItem('foxTxBiometricEnabled') === 'true' 
                               && biometricAvailable 
                               && localStorage.getItem('foxBiometricEnabled') === 'true';
@@ -1568,16 +2060,14 @@
         const subText = document.getElementById('confirmSubText');
         
         if (txBioEnabled) {
-            // فقط دکمه اثر انگشت
             bioBtn.style.display = 'block';
             bioBtn.style.marginBottom = '0';
             simpleBtn.style.display = 'none';
-            subText.textContent = 'برای ارسال، اثر انگشت خود را بزنید';
+            subText.textContent = t('confirmTxSubBio');
         } else {
-            // فقط دکمه ساده
             bioBtn.style.display = 'none';
             simpleBtn.style.display = 'block';
-            subText.textContent = 'برای ارسال، دکمه تأیید را بزنید';
+            subText.textContent = t('confirmTxSub');
         }
         
         document.getElementById('confirmTxModal').classList.remove('closed');
@@ -1591,10 +2081,10 @@
     async function confirmWithBiometric() {
         if (!state.pendingTx) return;
         
-        const result = await BiometricAuth.verify('تأیید ارسال NFT');
+        const result = await BiometricAuth.verify(t('bioTxPrompt'));
         
         if (!result.success) {
-            toast('❌ احراز هویت ناموفق', 'error');
+            toast(t('bioFailed'), 'error');
             return;
         }
         
@@ -1615,7 +2105,7 @@
         
         try {
             document.getElementById('nftSendBtn').disabled = true;
-            status('🔄 در حال ارسال...', 'info');
+            status(t('sending'), 'info');
             
             const contract = new ethers.Contract(
                 tx.contract,
@@ -1627,7 +2117,7 @@
                 state.address, tx.to, tx.id, tx.amount, '0x'
             );
             
-            status('⏳ در انتظار تأیید شبکه...', 'info');
+            status(t('waitingNetwork'), 'info');
             
             const receipt = await transaction.wait();
             
@@ -1651,6 +2141,7 @@
                 blockNumber: receipt.blockNumber
             };
             
+            state.lastHash = receipt.transactionHash;
             saveTxToHistory(txRecord);
             showSuccessModal(txRecord);
             
@@ -1664,17 +2155,17 @@
             state.selectedNFTCollection = null;
             state.pendingTx = null;
             
-            status('✅ تراکنش تأیید شد', 'success');
+            status(t('txConfirmed'), 'success');
             await refreshAll();
             
         } catch (e) {
             console.error('TX error:', e);
-            let errMsg = e.message || 'خطا در ارسال';
+            let errMsg = e.message || 'Error';
             if (e.code === 'ACTION_REJECTED' || errMsg.includes('user rejected')) {
-                errMsg = 'تراکنش لغو شد';
+                errMsg = t('txCancelled');
             }
             toast('❌ ' + errMsg, 'error');
-            status('❌ خطا در ارسال', 'error');
+            status(t('sendingError'), 'error');
         } finally {
             document.getElementById('nftSendBtn').disabled = false;
             state.pendingTx = null;
@@ -1708,8 +2199,11 @@
         document.getElementById('successTo').title = tx.to;
         document.getElementById('successGas').textContent = tx.gasFee + ' AVAX';
         document.getElementById('successTime').textContent = new Date(tx.timestamp).toLocaleString(currentLang === 'fa' ? 'fa-IR' : 'en-US');
-        document.getElementById('successHash').textContent = tx.hash.slice(0, 10) + '...' + tx.hash.slice(-8);
+        
+        // Hash with copy
+        document.getElementById('successHash').textContent = tx.hash.slice(0, 12) + '...' + tx.hash.slice(-8);
         document.getElementById('successHash').title = tx.hash;
+        state.lastHash = tx.hash;
         
         document.getElementById('successModal').classList.remove('closed');
     }
@@ -1722,7 +2216,7 @@
     // SEED
     // ========================================
     function showSeed() {
-        if (!state.address) { toast('❌ کیف پول متصل نیست', 'error'); return; }
+        if (!state.address) { toast(t('notConnected'), 'error'); return; }
         document.getElementById('seedModal').classList.remove('closed');
         document.getElementById('seedViewResult').classList.add('hidden');
         document.getElementById('seedViewResult').textContent = '';
@@ -1731,13 +2225,13 @@
 
     function viewSeed() {
         const pass = document.getElementById('seedViewPass').value;
-        if (!pass) { toast('رمز عبور را وارد کنید', 'error'); return; }
+        if (!pass) { toast(t('enterPassword'), 'error'); return; }
         try {
             const seed = decrypt(state.encryptedSeed, pass);
             document.getElementById('seedViewResult').textContent = seed;
             document.getElementById('seedViewResult').classList.remove('hidden');
-            toast('✅ کلمات نمایش داده شد');
-        } catch (e) { toast('❌ رمز اشتباه است', 'error'); }
+            toast(currentLang === 'fa' ? '✅ کلمات نمایش داده شد' : '✅ Words displayed');
+        } catch (e) { toast(t('passWrong'), 'error'); }
     }
 
     function closeSeedModal() { document.getElementById('seedModal').classList.add('closed'); }
@@ -1745,7 +2239,7 @@
     function copyAddress() {
         if (state.address) {
             navigator.clipboard.writeText(state.address);
-            toast('✅ آدرس کپی شد');
+            toast(t('copied'));
         }
     }
 
@@ -1793,8 +2287,8 @@
             }
 
             if (!connected) {
-                status('❌ خطا در اتصال به شبکه', 'error');
-                toast('❌ خطا در اتصال به شبکه', 'error');
+                status('❌ ' + (currentLang === 'fa' ? 'خطا در اتصال به شبکه' : 'Network connection error'), 'error');
+                toast('❌ ' + (currentLang === 'fa' ? 'خطا در اتصال به شبکه' : 'Network connection error'), 'error');
                 return;
             }
 
@@ -1813,7 +2307,7 @@
                 const biometricEnabled = localStorage.getItem('foxBiometricEnabled') === 'true';
                 
                 if (biometricEnabled && biometricAvailable) {
-                    status('👆 در انتظار اثر انگشت...', 'info');
+                    status(t('waitingFingerprint'), 'info');
                     updateWalletDropdown();
                     document.getElementById('loginModal').classList.add('closed');
                     
@@ -1850,7 +2344,7 @@
         document.getElementById('createSection').classList.remove('hidden');
         document.getElementById('importSection').classList.add('hidden');
         document.getElementById('unlockSection').classList.add('hidden');
-        document.getElementById('newSeed').textContent = 'برای تولید کلیک کنید';
+        document.getElementById('newSeed').textContent = t('generateClick');
         newMnemonic = '';
     }
 
@@ -1873,16 +2367,16 @@
             const wallet = ethers.Wallet.createRandom();
             newMnemonic = wallet.mnemonic.phrase;
             document.getElementById('newSeed').textContent = newMnemonic;
-            toast('✅ ۱۲ کلمه ساخته شد');
+            toast(t('seedGenerated'));
         } catch (e) { toast('❌ ' + e.message, 'error'); }
     }
 
     async function createWallet() {
         const pass = document.getElementById('createPass').value;
         const pass2 = document.getElementById('createPass2').value;
-        if (!newMnemonic) { toast('ابتدا کلمات را تولید کنید', 'error'); return; }
-        if (pass.length < 6) { toast('رمز باید حداقل ۶ کاراکتر باشد', 'error'); return; }
-        if (pass !== pass2) { toast('رمزها مطابقت ندارند', 'error'); return; }
+        if (!newMnemonic) { toast(t('generateFirst'), 'error'); return; }
+        if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+        if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
         try {
             const wallet = ethers.Wallet.fromMnemonic(newMnemonic);
             const addr = wallet.address;
@@ -1893,8 +2387,8 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('loginModal').classList.add('closed');
-                status('✅ کیف پول ساخته شد', 'success');
-                toast('🎉 کیف پول ساخته شد');
+                status(t('walletCreated'), 'success');
+                toast(t('walletCreated'));
                 document.getElementById('createPass').value = '';
                 document.getElementById('createPass2').value = '';
                 newMnemonic = '';
@@ -1907,9 +2401,9 @@
         const seed = document.getElementById('importSeed').value.trim();
         const pass = document.getElementById('importPass').value;
         const pass2 = document.getElementById('importPass2').value;
-        if (!seed) { toast('۱۲ کلمه را وارد کنید', 'error'); return; }
-        if (pass.length < 6) { toast('رمز باید حداقل ۶ کاراکتر باشد', 'error'); return; }
-        if (pass !== pass2) { toast('رمزها مطابقت ندارند', 'error'); return; }
+        if (!seed) { toast(t('seedPlaceholder'), 'error'); return; }
+        if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+        if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
         try {
             const wallet = ethers.Wallet.fromMnemonic(seed);
             const addr = wallet.address;
@@ -1920,16 +2414,16 @@
                 state.unlocked = true;
                 document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
                 document.getElementById('loginModal').classList.add('closed');
-                status('✅ کیف پول وارد شد', 'success');
-                toast('🎉 کیف پول وارد شد');
+                status(t('walletImported'), 'success');
+                toast(t('walletImported'));
                 await refreshAll();
             }
-        } catch (e) { toast('❌ رمز اشتباه است', 'error'); }
+        } catch (e) { toast(t('passWrong'), 'error'); }
     }
 
     async function unlockWallet() {
         const pass = document.getElementById('unlockPass').value;
-        if (!pass) { toast('رمز عبور را وارد کنید', 'error'); return; }
+        if (!pass) { toast(t('enterPassword'), 'error'); return; }
         try {
             const seed = decrypt(state.encryptedSeed, pass);
             const wallet = ethers.Wallet.fromMnemonic(seed);
@@ -1938,8 +2432,8 @@
             state.currentPassword = pass;
             document.getElementById('loginModal').classList.add('closed');
             document.getElementById('unlockPass').value = '';
-            status('✅ کیف پول باز شد', 'success');
-            toast('🔓 کیف پول باز شد');
+            status(t('walletUnlocked'), 'success');
+            toast(t('walletUnlocked'));
 
             if (state.pendingSwitchIndex !== undefined && state.pendingSwitchIndex !== state.activeWalletIndex) {
                 const targetIndex = state.pendingSwitchIndex;
@@ -1948,7 +2442,7 @@
             } else {
                 await refreshAll();
             }
-        } catch (e) { toast('❌ رمز اشتباه است', 'error'); }
+        } catch (e) { toast(t('passWrong'), 'error'); }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
