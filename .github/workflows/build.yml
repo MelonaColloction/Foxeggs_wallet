@@ -547,9 +547,9 @@ jobs:
 
 
       # ==========================================
-      # GENERATE ANDROID ICONS
+      # GENERATE ANDROID LAUNCHER ICONS
       # ==========================================
-      - name: Generate Android icons
+      - name: Generate Android launcher icons
         run: |
           python3 - <<'PY'
           from PIL import Image
@@ -576,8 +576,68 @@ jobs:
               icon = source.resize((size, size), Image.Resampling.LANCZOS)
               icon.save(folder + "/ic_launcher.png")
               icon.save(folder + "/ic_launcher_round.png")
+              icon.save(folder + "/ic_launcher_foreground.png")
 
-          print("Android icons generated successfully.")
+          print("Android launcher icons generated successfully.")
+          PY
+
+
+      # ==========================================
+      # CREATE NOTIFICATION SMALL ICON (WHITE/MONOCHROME)
+      # ==========================================
+      - name: Create notification small icon
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          import os
+
+          with open("CUSTOM_ICON", "r") as f:
+              filename = f.read().strip()
+
+          print("Creating monochrome notification icon from:", filename)
+
+          source = Image.open(filename).convert("RGBA")
+
+          def make_mono(img, size):
+              """Convert image to monochrome white with transparent background"""
+              img = img.resize((size, size), Image.Resampling.LANCZOS)
+              data = img.getdata()
+              new_data = []
+              for item in data:
+                  # Keep alpha transparency, make color white
+                  if item[3] > 50:
+                      new_data.append((255, 255, 255, 255))
+                  else:
+                      new_data.append((0, 0, 0, 0))
+              img.putdata(new_data)
+              return img
+
+          # Base drawable folder
+          drawable_folder = "android/app/src/main/res/drawable"
+          os.makedirs(drawable_folder, exist_ok=True)
+
+          # Different densities for notification icon
+          sizes = {
+              "mdpi": 24,
+              "hdpi": 36,
+              "xhdpi": 48,
+              "xxhdpi": 72,
+              "xxxhdpi": 96
+          }
+
+          for density, size in sizes.items():
+              folder = "android/app/src/main/res/drawable-" + density
+              os.makedirs(folder, exist_ok=True)
+              mono_icon = make_mono(source.copy(), size)
+              mono_icon.save(folder + "/ic_notification.png")
+              print(f"  Created: {folder}/ic_notification.png ({size}x{size})")
+
+          # Also create base version
+          mono_icon = make_mono(source.copy(), 96)
+          mono_icon.save(drawable_folder + "/ic_notification.png")
+          print(f"  Created: {drawable_folder}/ic_notification.png (96x96)")
+
+          print("Notification small icons created (monochrome white).")
           PY
 
 
@@ -588,6 +648,23 @@ jobs:
         run: |
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+          echo "Adaptive icons removed."
+
+
+      # ==========================================
+      # VERIFY ICONS
+      # ==========================================
+      - name: Verify icons
+        run: |
+          echo "=========================================="
+          echo "ICONS CREATED"
+          echo "=========================================="
+          echo ""
+          echo "Launcher icons:"
+          find android/app/src/main/res -name "ic_launcher*.png" | sort
+          echo ""
+          echo "Notification icons:"
+          find android/app/src/main/res -name "ic_notification.png" | sort
 
 
       # ==========================================
