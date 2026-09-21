@@ -912,7 +912,7 @@
                         <div class="desc" id="notifVibrateDesc">لرزش هنگام اعلان</div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="notifVibrateToggle" onchange="toggleNotificationVibrate()" />
+                        <input type="checkbox" id="notifVibrateToggle" onclick="toggleNotificationVibrate()" />
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -1233,8 +1233,9 @@
                         id: Math.floor(Math.random() * 1000000),
                         title: title,
                         body: body,
-                        smallIcon: 'ic_launcher',
+                        smallIcon: 'ic_notification',
                         largeIcon: 'ic_launcher',
+                        iconColor: '#4ade80',
                         channelId: 'foxeggs-notifications',
                         schedule: { at: new Date(Date.now() + 100) },
                         sound: Settings.getNotifSound() ? 'default' : null,
@@ -2221,7 +2222,6 @@
                     ['function balanceOf(address, uint) view returns (uint)'],
                     state.provider
                 );
-                // ✅ فقط ID 1 - بهینه‌شده
                 const id = 1;
                 try {
                     const balance = await contract.balanceOf(state.address, id);
@@ -2687,4 +2687,4 @@
 </script>
 
 </body>
-    </html>
+                </html>
