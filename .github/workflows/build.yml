@@ -8,12 +8,8 @@ on:
     paths:
       - 'index.html'
       - 'icon.png'
+      - 'notification.png'
       - '.github/workflows/build.yml'
-  pull_request:
-    branches:
-      - main
-    paths:
-      - 'index.html'
 
 jobs:
   build:
@@ -66,7 +62,7 @@ jobs:
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
-          echo "Android SDK packages installed successfully."
+          echo "Android SDK packages installed."
 
 
       # ==========================================
@@ -78,7 +74,7 @@ jobs:
           rm -rf www
           mkdir -p www
           cp index.html www/index.html
-          echo "Wallet prepared successfully."
+          echo "Wallet prepared."
 
 
       # ==========================================
@@ -154,22 +150,18 @@ jobs:
           if not main_activity:
               raise SystemExit("MainActivity.java not found.")
 
-          print("Found MainActivity:", main_activity)
-
           with open(main_activity, "r", encoding="utf-8") as f:
               original = f.read()
 
           package_match = re.search(
               r'^\s*package\s+([^;]+);',
-              original,
-              re.MULTILINE
+              original, re.MULTILINE
           )
 
           if not package_match:
-              raise SystemExit("Package name not found in MainActivity.java")
+              raise SystemExit("Package name not found.")
 
           package_name = package_match.group(1)
-          print("Package:", package_name)
 
           fullscreen_activity = f'''package {package_name};
 
@@ -205,7 +197,7 @@ jobs:
           with open(main_activity, "w", encoding="utf-8") as f:
               f.write(fullscreen_activity)
 
-          print("Fullscreen MainActivity created successfully.")
+          print("Fullscreen MainActivity created.")
           PY
 
 
@@ -228,15 +220,12 @@ jobs:
           VERSION_NAME="1.0.${RUN_NUMBER}"
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "=========================================="
-          echo "VERSION"
-          echo "=========================================="
           echo "Version Code: $VERSION_CODE"
           echo "Version Name: $VERSION_NAME"
 
 
       # ==========================================
-      # LOAD EXISTING KEYSTORE
+      # LOAD KEYSTORE
       # ==========================================
       - name: Load existing keystore
         env:
@@ -247,28 +236,17 @@ jobs:
           test -s FoxEggs.keystore
           mkdir -p android/app
           cp FoxEggs.keystore android/app/FoxEggs.keystore
-          echo "Keystore loaded successfully."
+          echo "Keystore loaded."
 
 
       # ==========================================
-      # CONFIGURE SIGNING PROPERTIES (AUTO-DETECT ALIAS)
+      # CONFIGURE SIGNING PROPERTIES
       # ==========================================
       - name: Configure signing properties
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           test -n "$KEYSTORE_PASSWORD"
-          echo "=========================================="
-          echo "DETECTING KEYSTORE ALIAS"
-          echo "=========================================="
-
-          keytool -list -v -keystore android/app/FoxEggs.keystore \
-            -storepass "$KEYSTORE_PASSWORD" | head -n 30
-
-          echo ""
-          echo "=========================================="
-          echo "SEARCHING FOR ALIAS..."
-          echo "=========================================="
 
           ALIAS=$(keytool -list -keystore android/app/FoxEggs.keystore \
             -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
@@ -282,11 +260,7 @@ jobs:
             exit 1
           fi
 
-          echo ""
-          echo "=========================================="
           echo "✅ AUTO-DETECTED ALIAS: $ALIAS"
-          echo "=========================================="
-
           echo "DETECTED_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
 
           cat >> android/gradle.properties <<EOF
@@ -297,7 +271,7 @@ jobs:
           FOXEGGS_KEY_PASSWORD=${KEYSTORE_PASSWORD}
           EOF
 
-          echo "Signing properties configured with alias: $ALIAS"
+          echo "Signing properties configured."
 
 
       # ==========================================
@@ -310,38 +284,17 @@ jobs:
           import os
 
           path = "android/app/build.gradle"
-
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          text = re.sub(
-              r'applicationId\s+"[^"]+"',
-              'applicationId "com.foxeggs.wallet"',
-              text, count=1
-          )
-
-          text = re.sub(
-              r'compileSdk\s+\d+',
-              'compileSdk 35',
-              text, count=1
-          )
-
-          text = re.sub(
-              r'versionCode\s+\d+',
-              'versionCode ' + os.environ["VERSION_CODE"],
-              text, count=1
-          )
-
-          text = re.sub(
-              r'versionName\s+"[^"]+"',
-              'versionName "' + os.environ["VERSION_NAME"] + '"',
-              text, count=1
-          )
+          text = re.sub(r'applicationId\s+"[^"]+"', 'applicationId "com.foxeggs.wallet"', text, count=1)
+          text = re.sub(r'compileSdk\s+\d+', 'compileSdk 35', text, count=1)
+          text = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ["VERSION_CODE"], text, count=1)
+          text = re.sub(r'versionName\s+"[^"]+"', 'versionName "' + os.environ["VERSION_NAME"] + '"', text, count=1)
 
           text = re.sub(
               r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)',
-              '',
-              text, count=1, flags=re.S
+              '', text, count=1, flags=re.S
           )
 
           signing_block = '''
@@ -359,14 +312,9 @@ jobs:
           '''
 
           if "signingConfigs {" not in text:
-              text = text.replace(
-                  "    buildTypes {",
-                  signing_block + "    buildTypes {",
-                  1
-              )
+              text = text.replace("    buildTypes {", signing_block + "    buildTypes {", 1)
 
           release_pattern = r'(buildTypes\s*\{\s*release\s*\{)'
-
           if "signingConfig signingConfigs.release" not in text:
               text = re.sub(
                   release_pattern,
@@ -382,35 +330,16 @@ jobs:
               if release_match:
                   release_body = release_match.group(2)
                   if "minifyEnabled" in release_body:
-                      release_body = re.sub(
-                          r'minifyEnabled\s+\w+',
-                          'minifyEnabled false',
-                          release_body, count=1
-                      )
+                      release_body = re.sub(r'minifyEnabled\s+\w+', 'minifyEnabled false', release_body, count=1)
                   else:
                       release_body = "\n            minifyEnabled false" + release_body
-                  text = (
-                      text[:release_match.start(2)]
-                      + release_body
-                      + text[release_match.end(2):]
-                  )
+                  text = text[:release_match.start(2)] + release_body + text[release_match.end(2):]
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
 
-          print("Android Gradle configured successfully.")
+          print("Android Gradle configured.")
           PY
-
-
-      # ==========================================
-      # SHOW GRADLE CONFIG
-      # ==========================================
-      - name: Show Gradle configuration
-        run: |
-          echo "=========================================="
-          echo "FINAL ANDROID BUILD.GRADLE"
-          echo "=========================================="
-          cat android/app/build.gradle
 
 
       # ==========================================
@@ -420,9 +349,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import re
-
           path = "android/app/src/main/AndroidManifest.xml"
-
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
@@ -440,8 +367,7 @@ jobs:
               pattern = (
                   r'\s*<uses-permission\s+'
                   r'android:name="android\.permission\.'
-                  + permission +
-                  r'"\s*/>'
+                  + permission + r'"\s*/>'
               )
               text = re.sub(pattern, '', text)
 
@@ -453,52 +379,36 @@ jobs:
 
 
       # ==========================================
-      # ADD INTERNET + BIOMETRIC + NOTIFICATION PERMISSIONS
+      # ADD PERMISSIONS
       # ==========================================
-      - name: Add Internet, Biometric and Notification permissions
+      - name: Add permissions
         run: |
           python3 - <<'PY'
           import re
-
           path = "android/app/src/main/AndroidManifest.xml"
-
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
           extras = ""
-
-          if 'android.permission.INTERNET' not in text:
-              extras += '    <uses-permission android:name="android.permission.INTERNET" />\n'
-
-          if 'android.permission.USE_BIOMETRIC' not in text:
-              extras += '    <uses-permission android:name="android.permission.USE_BIOMETRIC" />\n'
-
-          if 'android.permission.USE_FINGERPRINT' not in text:
-              extras += '    <uses-permission android:name="android.permission.USE_FINGERPRINT" />\n'
-
-          if 'android.permission.POST_NOTIFICATIONS' not in text:
-              extras += '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n'
-
-          if 'android.permission.VIBRATE' not in text:
-              extras += '    <uses-permission android:name="android.permission.VIBRATE" />\n'
-
-          if 'android.permission.SCHEDULE_EXACT_ALARM' not in text:
-              extras += '    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n'
-
-          if 'android.permission.RECEIVE_BOOT_COMPLETED' not in text:
-              extras += '    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />\n'
+          for perm in [
+              "android.permission.INTERNET",
+              "android.permission.USE_BIOMETRIC",
+              "android.permission.USE_FINGERPRINT",
+              "android.permission.POST_NOTIFICATIONS",
+              "android.permission.VIBRATE",
+              "android.permission.SCHEDULE_EXACT_ALARM",
+              "android.permission.RECEIVE_BOOT_COMPLETED"
+          ]:
+              if perm not in text:
+                  extras += f'    <uses-permission android:name="{perm}" />\n'
 
           if extras:
-              text = text.replace(
-                  '<application',
-                  extras + '    <application',
-                  1
-              )
+              text = text.replace('<application', extras + '    <application', 1)
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
 
-          print("All permissions added.")
+          print("Permissions added.")
           PY
 
 
@@ -506,50 +416,71 @@ jobs:
       # INSTALL PILLOW
       # ==========================================
       - name: Install Pillow
-        run: |
-          python3 -m pip install pillow
+        run: python3 -m pip install pillow
 
 
       # ==========================================
-      # FIND CUSTOM WALLET ICON
+      # FIND ICONS
       # ==========================================
-      - name: Find custom wallet icon
+      - name: Find icons
         run: |
           python3 - <<'PY'
           import os
 
           extensions = (".png", ".jpg", ".jpeg", ".webp")
 
-          files = [
-              f for f in os.listdir(".")
-              if os.path.isfile(f)
-              and f.lower().endswith(extensions)
-          ]
+          # === آیکون اصلی اپ ===
+          icon_file = None
+          if os.path.exists("icon.png"):
+              icon_file = "icon.png"
+          else:
+              files = [f for f in os.listdir(".")
+                       if os.path.isfile(f) and f.lower().endswith(extensions)]
+              files = [f for f in files if "notification" not in f.lower()]
+              if files:
+                  icon_file = files[0]
 
-          ignored = {"foxeggs-icon.png", "wallet-logo.png"}
+          if not icon_file:
+              raise SystemExit("❌ No launcher icon found! Please add icon.png")
 
-          files = [f for f in files if f.lower() not in ignored]
-
-          if not files:
-              raise SystemExit("No image file found in project root.")
-
-          preferred = [f for f in files if f.lower() == "icon.png"]
-          logo = preferred[0] if preferred else files[0]
-
-          print("==========================================")
-          print("CUSTOM WALLET ICON")
-          print("==========================================")
-          print("Using image:", logo)
+          print("=" * 50)
+          print("LAUNCHER ICON:", icon_file)
+          print("=" * 50)
 
           with open("CUSTOM_ICON", "w") as f:
-              f.write(logo)
+              f.write(icon_file)
+
+          # === آیکون نوتیفیکیشن ===
+          notif_options = [
+              "notification.png",
+              "notification-white.png",
+              "ic_notification.png",
+              "notif.png"
+          ]
+
+          notif_file = None
+          for opt in notif_options:
+              if os.path.exists(opt):
+                  notif_file = opt
+                  break
+
+          if notif_file:
+              print("NOTIFICATION ICON:", notif_file)
+              with open("CUSTOM_NOTIFICATION", "w") as f:
+                  f.write(notif_file)
+          else:
+              print("⚠️  NO NOTIFICATION ICON FOUND")
+              print("⚠️  Will use launcher icon instead")
+              with open("CUSTOM_NOTIFICATION", "w") as f:
+                  f.write(icon_file)
+          print("=" * 50)
           PY
 
 
       # ==========================================
-      # GENERATE ANDROID LAUNCHER ICONS
+      # GENERATE LAUNCHER ICONS
       # ==========================================
-      - name: Generate Android launcher icons
+      - name: Generate launcher icons
         run: |
           python3 - <<'PY'
           from PIL import Image
@@ -558,16 +489,13 @@ jobs:
           with open("CUSTOM_ICON", "r") as f:
               filename = f.read().strip()
 
-          print("Loading custom icon:", filename)
+          print("Loading launcher icon:", filename)
 
           source = Image.open(filename).convert("RGBA")
 
           sizes = {
-              "mdpi": 48,
-              "hdpi": 72,
-              "xhdpi": 96,
-              "xxhdpi": 144,
-              "xxxhdpi": 192
+              "mdpi": 48, "hdpi": 72, "xhdpi": 96,
+              "xxhdpi": 144, "xxxhdpi": 192
           }
 
           for density, size in sizes.items():
@@ -578,33 +506,32 @@ jobs:
               icon.save(folder + "/ic_launcher_round.png")
               icon.save(folder + "/ic_launcher_foreground.png")
 
-          print("Android launcher icons generated successfully.")
+          print("✅ Launcher icons created from", filename)
           PY
 
 
       # ==========================================
-      # CREATE NOTIFICATION SMALL ICON (WHITE/MONOCHROME)
+      # GENERATE NOTIFICATION ICONS
       # ==========================================
-      - name: Create notification small icon
+      - name: Generate notification icons
         run: |
           python3 - <<'PY'
           from PIL import Image
           import os
 
-          with open("CUSTOM_ICON", "r") as f:
+          with open("CUSTOM_NOTIFICATION", "r") as f:
               filename = f.read().strip()
 
-          print("Creating monochrome notification icon from:", filename)
+          print("Loading notification icon:", filename)
 
           source = Image.open(filename).convert("RGBA")
 
           def make_mono(img, size):
-              """Convert image to monochrome white with transparent background"""
+              """Convert image to white monochrome"""
               img = img.resize((size, size), Image.Resampling.LANCZOS)
               data = img.getdata()
               new_data = []
               for item in data:
-                  # Keep alpha transparency, make color white
                   if item[3] > 50:
                       new_data.append((255, 255, 255, 255))
                   else:
@@ -612,98 +539,53 @@ jobs:
               img.putdata(new_data)
               return img
 
-          # Base drawable folder
-          drawable_folder = "android/app/src/main/res/drawable"
-          os.makedirs(drawable_folder, exist_ok=True)
-
-          # Different densities for notification icon
-          sizes = {
-              "mdpi": 24,
-              "hdpi": 36,
-              "xhdpi": 48,
-              "xxhdpi": 72,
-              "xxxhdpi": 96
-          }
-
-          for density, size in sizes.items():
+          # Drawable folders
+          for density, size in {
+              "mdpi": 24, "hdpi": 36, "xhdpi": 48,
+              "xxhdpi": 72, "xxxhdpi": 96
+          }.items():
               folder = "android/app/src/main/res/drawable-" + density
               os.makedirs(folder, exist_ok=True)
-              mono_icon = make_mono(source.copy(), size)
-              mono_icon.save(folder + "/ic_notification.png")
-              print(f"  Created: {folder}/ic_notification.png ({size}x{size})")
+              mono = make_mono(source.copy(), size)
+              mono.save(folder + "/ic_notification.png")
 
-          # Also create base version
-          mono_icon = make_mono(source.copy(), 96)
-          mono_icon.save(drawable_folder + "/ic_notification.png")
-          print(f"  Created: {drawable_folder}/ic_notification.png (96x96)")
+          # Base drawable
+          drawable_folder = "android/app/src/main/res/drawable"
+          os.makedirs(drawable_folder, exist_ok=True)
+          mono = make_mono(source.copy(), 96)
+          mono.save(drawable_folder + "/ic_notification.png")
 
-          print("Notification small icons created (monochrome white).")
+          print("✅ Notification icons created from", filename)
           PY
 
 
       # ==========================================
-      # REMOVE ADAPTIVE ICON DEFAULTS
+      # REMOVE ADAPTIVE ICONS
       # ==========================================
       - name: Remove adaptive icon defaults
         run: |
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-          echo "Adaptive icons removed."
 
 
       # ==========================================
-      # VERIFY ICONS
+      # VERIFY
       # ==========================================
       - name: Verify icons
         run: |
           echo "=========================================="
-          echo "ICONS CREATED"
+          echo "LAUNCHER ICONS"
           echo "=========================================="
-          echo ""
-          echo "Launcher icons:"
           find android/app/src/main/res -name "ic_launcher*.png" | sort
           echo ""
-          echo "Notification icons:"
+          echo "=========================================="
+          echo "NOTIFICATION ICONS"
+          echo "=========================================="
           find android/app/src/main/res -name "ic_notification.png" | sort
 
 
       # ==========================================
-      # VERIFY CONFIGURATION
-      # ==========================================
-      - name: Verify configuration
-        run: |
-          echo "=========================================="
-          echo "FOXEGGS WALLET CONFIGURATION"
-          echo "=========================================="
-
-          echo ""
-          echo "APPLICATION ID:"
-          grep "applicationId" android/app/build.gradle
-
-          echo ""
-          echo "VERSION:"
-          grep "versionCode" android/app/build.gradle
-          grep "versionName" android/app/build.gradle
-
-          echo ""
-          echo "COMPILE SDK:"
-          grep "compileSdk" android/app/build.gradle
-
-          echo ""
-          echo "SIGNING:"
-          grep -A10 "signingConfigs" android/app/build.gradle
-
-          echo ""
-          echo "ALIAS USED:"
-          grep "FOXEGGS_KEY_ALIAS" android/gradle.properties
-
-          echo ""
-          echo "PERMISSIONS:"
-          cat android/app/src/main/AndroidManifest.xml | grep "uses-permission"
-
-
-      # ==========================================
-      # BUILD RELEASE APK
+      # BUILD APK
       # ==========================================
       - name: Build Release APK
         working-directory: android
@@ -714,50 +596,11 @@ jobs:
 
 
       # ==========================================
-      # INSPECT APK
-      # ==========================================
-      - name: Inspect APK
-        run: |
-          APK="android/app/build/outputs/apk/release/app-release.apk"
-
-          test -f "$APK"
-
-          BUILD_TOOLS=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -n 1)
-          AAPT="$ANDROID_HOME/build-tools/$BUILD_TOOLS/aapt"
-          APKSIGNER="$ANDROID_HOME/build-tools/$BUILD_TOOLS/apksigner"
-
-          echo "=========================================="
-          echo "FOXEGGS WALLET APK"
-          echo "=========================================="
-
-          echo ""
-          echo "APK FILE:"
-          ls -lh "$APK"
-
-          echo ""
-          echo "SHA256:"
-          sha256sum "$APK"
-
-          echo ""
-          echo "PACKAGE / VERSION:"
-          "$AAPT" dump badging "$APK" | head -n 20
-
-          echo ""
-          echo "PERMISSIONS:"
-          "$AAPT" dump permissions "$APK"
-
-          echo ""
-          echo "SIGNATURE:"
-          "$APKSIGNER" verify --verbose --print-certs "$APK"
-
-
-      # ==========================================
-      # BUILD RELEASE AAB
+      # BUILD AAB
       # ==========================================
       - name: Build Release AAB
         working-directory: android
-        run: |
-          ./gradlew bundleRelease --no-daemon
+        run: ./gradlew bundleRelease --no-daemon
 
 
       # ==========================================
@@ -766,23 +609,15 @@ jobs:
       - name: Prepare release
         run: |
           mkdir -p release
-
-          cp android/app/build/outputs/apk/release/app-release.apk \
-             release/FoxEggs-Wallet.apk
-
-          cp android/app/build/outputs/bundle/release/app-release.aab \
-             release/FoxEggs-Wallet.aab
-
-          CUSTOM_ICON=$(cat CUSTOM_ICON)
-          cp "$CUSTOM_ICON" release/FoxEggs-Wallet-Icon.png
-
-          echo "Release files prepared."
+          cp android/app/build/outputs/apk/release/app-release.apk release/FoxEggs-Wallet.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab release/FoxEggs-Wallet.aab
+          echo "Release prepared."
 
 
       # ==========================================
-      # UPLOAD ARTIFACT
+      # UPLOAD
       # ==========================================
-      - name: Upload FoxEggs Wallet Release
+      - name: Upload release
         uses: actions/upload-artifact@v6
         with:
           name: FoxEggs-Wallet-v${{ env.VERSION_NAME }}
@@ -798,4 +633,3 @@ jobs:
         run: |
           rm -f FoxEggs.keystore
           rm -f android/app/FoxEggs.keystore
-          echo "Cleanup complete."
