@@ -1050,9 +1050,7 @@
     // THEME & SETTINGS
     // ========================================
     const Settings = {
-        getTheme() {
-            return localStorage.getItem('foxTheme') || 'dark';
-        },
+        getTheme() { return localStorage.getItem('foxTheme') || 'dark'; },
         setTheme(theme) {
             localStorage.setItem('foxTheme', theme);
             document.documentElement.setAttribute('data-theme', theme);
@@ -1063,24 +1061,12 @@
                 el.classList.toggle('active', el.dataset.theme === theme);
             });
         },
-        getNotifSound() {
-            return localStorage.getItem('foxNotifSound') !== 'false';
-        },
-        setNotifSound(val) {
-            localStorage.setItem('foxNotifSound', val ? 'true' : 'false');
-        },
-        getNotifVibrate() {
-            return localStorage.getItem('foxNotifVibrate') !== 'false';
-        },
-        setNotifVibrate(val) {
-            localStorage.setItem('foxNotifVibrate', val ? 'true' : 'false');
-        },
-        getNotifDuration() {
-            return parseInt(localStorage.getItem('foxNotifDuration') || '4');
-        },
-        setNotifDuration(val) {
-            localStorage.setItem('foxNotifDuration', val);
-        }
+        getNotifSound() { return localStorage.getItem('foxNotifSound') !== 'false'; },
+        setNotifSound(val) { localStorage.setItem('foxNotifSound', val ? 'true' : 'false'); },
+        getNotifVibrate() { return localStorage.getItem('foxNotifVibrate') !== 'false'; },
+        setNotifVibrate(val) { localStorage.setItem('foxNotifVibrate', val ? 'true' : 'false'); },
+        getNotifDuration() { return parseInt(localStorage.getItem('foxNotifDuration') || '4'); },
+        setNotifDuration(val) { localStorage.setItem('foxNotifDuration', val); }
     };
 
     document.documentElement.setAttribute('data-theme', Settings.getTheme());
@@ -1153,7 +1139,6 @@
     }
 
     function vibrateDevice() {
-        // ۱. تلگرام Haptic Feedback
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
             try {
                 if (window.Telegram.WebApp.HapticFeedback.notificationOccurred) {
@@ -1164,9 +1149,7 @@
                 return;
             } catch (e) {}
         }
-        // ۲. تنظیمات کاربر
         if (!Settings.getNotifVibrate()) return;
-        // ۳. Native Vibration
         if (navigator.vibrate) {
             navigator.vibrate(50);
         }
@@ -1207,7 +1190,6 @@
                 return result.display === 'granted';
             } catch (e) { return false; }
         },
-        
         async checkPermission() {
             if (!isNative) return false;
             try {
@@ -1217,7 +1199,6 @@
                 return result.display === 'granted';
             } catch (e) { return false; }
         },
-        
         async createChannels() {
             if (!isNative) return;
             try {
@@ -1234,11 +1215,8 @@
                     lights: true,
                     lightColor: '#4ade80'
                 });
-            } catch (e) {
-                console.log('Channel creation error:', e);
-            }
+            } catch (e) {}
         },
-        
         async send(title, body, type = 'success') {
             showInAppBanner(type, title, body);
             if (!isNative) return;
@@ -1264,9 +1242,7 @@
                         autoCancel: true,
                     }]
                 });
-            } catch (e) {
-                console.log('Native notification error:', e);
-            }
+            } catch (e) {}
         }
     };
 
@@ -1289,7 +1265,6 @@
                 return { available: false, type: 'error' };
             }
         },
-        
         async verify(title = 'تأیید هویت') {
             if (!isNative) return { success: false };
             try {
@@ -1310,7 +1285,6 @@
                 return { success: false, error: e.message };
             }
         },
-        
         async saveCredentials(username, password) {
             if (!isNative) return false;
             try {
@@ -1324,7 +1298,6 @@
                 return true;
             } catch (e) { return false; }
         },
-        
         async getCredentials() {
             if (!isNative) return null;
             try {
@@ -1333,7 +1306,6 @@
                 return await NativeBiometric.getCredentials({ server: 'foxeggs.wallet' });
             } catch (e) { return null; }
         },
-        
         async deleteCredentials() {
             if (!isNative) return false;
             try {
@@ -2236,7 +2208,7 @@
     }
 
     // ========================================
-    // LOAD NFTS
+    // LOAD NFTS (بهینه‌شده - فقط ID 1)
     // ========================================
     async function loadAllNFTs() {
         if (!state.address) { status(t('notConnected'), 'error'); return; }
@@ -2249,21 +2221,21 @@
                     ['function balanceOf(address, uint) view returns (uint)'],
                     state.provider
                 );
-                for (let id = 1; id <= 30; id++) {
-                    try {
-                        const balance = await contract.balanceOf(state.address, id);
-                        if (balance.gt(0)) {
-                            allNFTs.push({
-                                id: id,
-                                balance: balance.toNumber(),
-                                image: contractInfo.image,
-                                name: `${contractInfo.name} #${id}`,
-                                contract: contractInfo.address,
-                                contractName: contractInfo.name
-                            });
-                        }
-                    } catch (e) {}
-                }
+                // ✅ فقط ID 1 - بهینه‌شده
+                const id = 1;
+                try {
+                    const balance = await contract.balanceOf(state.address, id);
+                    if (balance.gt(0)) {
+                        allNFTs.push({
+                            id: id,
+                            balance: balance.toNumber(),
+                            image: contractInfo.image,
+                            name: `${contractInfo.name} #${id}`,
+                            contract: contractInfo.address,
+                            contractName: contractInfo.name
+                        });
+                    }
+                } catch (e) {}
             }
             renderNFTs(allNFTs);
             status(currentLang === 'fa' ? '✅ NFT ها بروزرسانی شدند' : '✅ NFTs updated', 'success');
@@ -2535,9 +2507,6 @@
             
             await checkBiometricSupport();
             
-            // ==========================================
-            // INIT NOTIFICATIONS
-            // ==========================================
             await NativeNotifications.createChannels();
             await NativeNotifications.requestPermission();
             await NativeNotifications.checkPermission();
@@ -2718,4 +2687,4 @@
 </script>
 
 </body>
-                </html>
+    </html>
