@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'index.html'
+      - 'price.js'
       - 'icon.png'
       - 'notification.png'
       - '.github/workflows/build.yml'
@@ -74,7 +75,27 @@ jobs:
           rm -rf www
           mkdir -p www
           cp index.html www/index.html
+          
+          # 🆕 کپی price.js (اگه وجود داشت)
+          if [ -f price.js ]; then
+            cp price.js www/price.js
+            echo "✅ price.js copied to www/"
+          else
+            echo "⚠️  price.js not found — creating empty fallback"
+            cat > www/price.js <<'EOF'
+          // ⚠️ price.js not found in repo
+          // NFT prices will be 0
+          window.NFT_PRICES = {
+              currency: 'USDT',
+              lastUpdate: 'unknown',
+              collections: {},
+              overridePrices: {}
+          };
+          EOF
+          fi
+          
           echo "Wallet prepared."
+          ls -la www/
 
 
       # ==========================================
@@ -582,6 +603,11 @@ jobs:
           echo "NOTIFICATION ICONS"
           echo "=========================================="
           find android/app/src/main/res -name "ic_notification.png" | sort
+          echo ""
+          echo "=========================================="
+          echo "WWW CONTENT"
+          echo "=========================================="
+          ls -la www/
 
 
       # ==========================================
