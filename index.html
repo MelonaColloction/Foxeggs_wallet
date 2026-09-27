@@ -6,6 +6,7 @@
     <title>FoxEggs Wallet</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="price.js"></script>
     <style>
 :root {
@@ -684,7 +685,6 @@ body {
     margin-top: 3px;
 }
 
-/* ═══ NFT Price Styles ═══ */
 .nft-price-unit {
     font-size: 0.55rem;
     color: var(--accent-gold);
@@ -1803,7 +1803,6 @@ body {
         </div>
 
         <div class="balance-grid">
-            <!-- موجودی AVAX -->
             <div class="balance-item">
                 <div class="balance-header">
                     <div class="label" id="gasLabel" style="margin:0;border:none;padding:0;">💰 موجودی AVAX</div>
@@ -1816,7 +1815,6 @@ body {
                 <div class="usd-value" id="avaxUSDValue">~ $0.00</div>
             </div>
             
-            <!-- ارزش NFT ها -->
             <div class="balance-item" id="nftValueBox" style="border-bottom-color: var(--accent-gold); display: none;">
                 <div class="balance-header">
                     <div class="label" style="margin:0;border:none;padding:0;">🖼️ ارزش NFT ها</div>
@@ -1828,7 +1826,6 @@ body {
                 <div class="usd-value" id="nftValueAVAX">≈ 0 AVAX</div>
             </div>
             
-            <!-- ارزش کل دارایی -->
             <div class="balance-item" id="totalValueBox" style="border-bottom-color: var(--accent-purple); display: none;">
                 <div class="balance-header">
                     <div class="label" style="margin:0;border:none;padding:0;">💎 ارزش کل دارایی</div>
@@ -2235,7 +2232,7 @@ body {
                         <div class="desc" id="notifVibrateDesc">لرزش هنگام اعلان</div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="notifVibrateToggle" onchange="toggleNotificationVibrate()" />
+                        <input type="checkbox" id="notifVibrateToggle" onclick="toggleNotificationVibrate()" />
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -2817,11 +2814,8 @@ const CONFIG = {
     
     nftIdsToCheck: 5,
     
-    // ═══════════════════════════════════════════════════════════
-    // 💰 تابع قیمت NFT - از price.js می‌خونه
-    // ═══════════════════════════════════════════════════════════
+    // 💰 قیمت NFT از price.js
     getNFTPrice(contractAddress, tokenId) {
-        // اگه price.js لود نشده
         if (typeof window.NFT_PRICES === 'undefined') {
             console.warn('⚠️ price.js not loaded');
             return 0;
@@ -2830,7 +2824,6 @@ const CONFIG = {
         const prices = window.NFT_PRICES;
         const addr = contractAddress.toLowerCase();
         
-        // اول چک overridePrices
         if (prices.overridePrices && prices.overridePrices[contractAddress]) {
             const override = prices.overridePrices[contractAddress];
             if (override[tokenId] !== undefined) {
@@ -2838,7 +2831,6 @@ const CONFIG = {
             }
         }
         
-        // چک با lowercase
         if (prices.overridePrices) {
             for (const key in prices.overridePrices) {
                 if (key.toLowerCase() === addr) {
@@ -2850,14 +2842,11 @@ const CONFIG = {
             }
         }
         
-        // قیمت کالکشن
         if (prices.collections) {
-            // اول با آدرس دقیق
             if (prices.collections[contractAddress]) {
                 return parseFloat(prices.collections[contractAddress].pricePerNFT || 0);
             }
             
-            // بعد با lowercase
             for (const key in prices.collections) {
                 if (key.toLowerCase() === addr) {
                     return parseFloat(prices.collections[key].pricePerNFT || 0);
@@ -2901,6 +2890,7 @@ let state = {
     swapToAmount: 0,
     swapFromBalance: '0',
     swapAmountOutWei: null,
+    qrScanner: null,
     scanTarget: null,
     favoritesForTarget: null
 };
@@ -3390,7 +3380,6 @@ function status(msg, type = 'info') {
     el.className = `status ${type}`;
 }
 
-// 🆕 برگرداندن status به "متصل"
 function restoreConnectedStatus() {
     if (state.unlocked && state.address) {
         status(t('connected'), 'success');
@@ -3655,7 +3644,6 @@ function updateUSDDisplay() {
         usdEl.classList.add('hidden-usd');
     }
     
-    // 🆕 آپدیت ارزش کل
     updateTotalValueDisplay();
 }
 
@@ -3672,7 +3660,7 @@ function startPriceUpdater() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 محاسبه ارزش NFT ها و کل دارایی
+// 💎 محاسبه ارزش NFT ها و کل دارایی
 // ═══════════════════════════════════════════════════════════════
 function updateTotalValueDisplay() {
     const nftValueBox = document.getElementById('nftValueBox');
@@ -3684,7 +3672,6 @@ function updateTotalValueDisplay() {
     
     if (!nftValueBox || !totalValueBox) return;
     
-    // 💰 محاسبه ارزش NFT ها (به دلار)
     let nftTotalUSD = 0;
     if (state.allNFTs && state.allNFTs.length > 0) {
         for (const nft of state.allNFTs) {
@@ -3694,13 +3681,9 @@ function updateTotalValueDisplay() {
         }
     }
     
-    // 💰 ارزش AVAX به دلار
     const avaxUSD = (state.lastAvaxBalance || 0) * (state.avaxPrice || 0);
-    
-    // 💎 جمع کل
     const totalUSD = avaxUSD + nftTotalUSD;
     
-    // 📊 نمایش NFT Value
     if (nftTotalUSD > 0) {
         nftValueBox.style.display = 'block';
         
@@ -3724,7 +3707,6 @@ function updateTotalValueDisplay() {
         nftValueBox.style.display = 'none';
     }
     
-    // 📊 نمایش Total Value
     if (totalUSD > 0) {
         totalValueBox.style.display = 'block';
         
@@ -3769,7 +3751,6 @@ function applyBalanceVisibility() {
         eyeBtn.textContent = '👁️';
     }
     
-    // 🆕 اعمال روی NFT و Total هم
     updateTotalValueDisplay();
 }
 
@@ -3835,7 +3816,6 @@ function updateUI() {
     document.getElementById('exitWalletBtn').textContent = L.logout;
     document.getElementById('footerText').textContent = L.footer;
     
-    // 🆕 ترجمه بخش ارزش‌گذاری
     const nftValueBox = document.getElementById('nftValueBox');
     const totalValueBox = document.getElementById('totalValueBox');
     if (nftValueBox) {
@@ -4211,7 +4191,7 @@ async function copyAddress() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 LOAD ALL NFTS (با قیمت)
+// LOAD ALL NFTS (با قیمت)
 // ═══════════════════════════════════════════════════════════════
 async function loadAllNFTs() {
     if (!state.address) return;
@@ -4237,7 +4217,6 @@ async function loadAllNFTs() {
                     
                     if (balance.gt(0)) {
                         const totalBalance = balance.toNumber();
-                        // 🆕 گرفتن قیمت NFT
                         const pricePerNFT = CONFIG.getNFTPrice(contractInfo.address, id);
                         
                         allNFTs.push({
@@ -4265,7 +4244,7 @@ async function loadAllNFTs() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 RENDER NFTS (با badge + قیمت)
+// RENDER NFTS (با badge + قیمت)
 // ═══════════════════════════════════════════════════════════════
 function renderNFTs(items) {
     const container = document.getElementById('nftList');
@@ -4300,7 +4279,6 @@ function renderNFTs(items) {
             ? `<img src="${item.image}" alt="${item.name}" class="nft-image" onerror="this.outerHTML='&lt;div class=\\'nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
             : `<div class="nft-image placeholder">🎨</div>`;
         
-        // 🆕 نمایش قیمت
         let priceHtml = '';
         if (item.pricePerNFT && item.pricePerNFT > 0) {
             priceHtml = `
@@ -4322,7 +4300,6 @@ function renderNFTs(items) {
     
     container.innerHTML = html;
     
-    // 🆕 آپدیت ارزش کل
     updateTotalValueDisplay();
 }
 
@@ -4375,7 +4352,6 @@ function closeAllNFTs() {
 function openNFTDetail(contract, id, name, image, collection) {
     const body = document.getElementById('nftDetailBody');
     
-    // 🆕 پیدا کردن قیمت
     const nftItem = state.allNFTs.find(n => 
         n.contract.toLowerCase() === contract.toLowerCase() && n.id === id
     );
@@ -4384,7 +4360,6 @@ function openNFTDetail(contract, id, name, image, collection) {
         ? `<img src="${image}" class="detail-nft-image" onerror="this.outerHTML='&lt;div class=\\'detail-nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
         : `<div class="detail-nft-image placeholder">🎨</div>`;
     
-    // 🆕 بخش قیمت
     let priceRows = '';
     if (nftItem && nftItem.pricePerNFT > 0) {
         priceRows = `
@@ -4772,19 +4747,115 @@ async function copyQrAddress() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 📷 QR SCANNER - پیام خطا (چون در file:// کار نمیکنه)
+// 📷 QR SCANNER - فعال!
 // ═══════════════════════════════════════════════════════════════
-function startQRScanner(target) {
-    showNotification('error', '❌', 
-        currentLang === 'fa' 
-            ? 'اسکنر فقط در HTTPS یا APK کار میکند. برای تست از localhost استفاده کنید.'
-            : 'Scanner works only in HTTPS or APK. Use localhost for testing.'
-    );
+async function startQRScanner(target) {
+    if (typeof Html5Qrcode === 'undefined') {
+        console.error('Html5Qrcode library not loaded');
+        showNotification('error', '❌', 
+            currentLang === 'fa' 
+                ? 'کتابخونه اسکنر لود نشد'
+                : 'Scanner library not loaded'
+        );
+        return;
+    }
+    
+    state.scanTarget = target;
+    
+    const modal = document.getElementById('scanModal');
+    if (!modal) return;
+    
+    modal.classList.remove('closed');
+    
+    // کمی صبر تا modal باز شه
+    setTimeout(async () => {
+        try {
+            state.qrScanner = new Html5Qrcode('qrReader');
+            
+            await state.qrScanner.start(
+                { facingMode: 'environment' },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 }
+                },
+                (decodedText) => {
+                    // موفق - QR خونده شد
+                    handleScanSuccess(decodedText);
+                },
+                (errorMessage) => {
+                    // خطای هر فریم (نادیده بگیر)
+                }
+            );
+            console.log('✅ Scanner started');
+        } catch (e) {
+            console.error('Scanner start error:', e);
+            
+            let errMsg = currentLang === 'fa' ? 'دوربین در دسترس نیست' : 'Camera unavailable';
+            
+            if (e.message && e.message.includes('Permission')) {
+                errMsg = currentLang === 'fa' 
+                    ? 'دسترسی دوربین داده نشد. از تنظیمات مرورگر اجازه دهید.' 
+                    : 'Camera permission denied. Allow in browser settings.';
+            } else if (e.message && e.message.includes('NotFound')) {
+                errMsg = currentLang === 'fa' ? 'دوربینی پیدا نشد' : 'No camera found';
+            } else if (e.message && e.message.includes('NotAllowed')) {
+                errMsg = currentLang === 'fa' 
+                    ? 'دسترسی دوربین رد شد' 
+                    : 'Camera access denied';
+            }
+            
+            showNotification('error', '❌', errMsg);
+            closeScanner();
+        }
+    }, 300);
 }
 
-function closeScanner() {
+function handleScanSuccess(decodedText) {
+    let address = decodedText.trim();
+    
+    // پاک‌سازی
+    if (address.startsWith('ethereum:')) {
+        address = address.substring(9);
+    }
+    if (address.includes('?')) {
+        address = address.split('?')[0];
+    }
+    if (address.includes('/transfer/')) {
+        address = address.split('/transfer/')[1] || address;
+    }
+    
+    if (!ethers.utils.isAddress(address)) {
+        toast(t('scanInvalid'), 'error');
+        return;
+    }
+    
+    // اعمال به مقصد
+    if (state.scanTarget === 'send-token') {
+        document.getElementById('tokenSendTo').value = address;
+        toast(t('scanSuccess'));
+    } else if (state.scanTarget === 'send-nft') {
+        document.getElementById('nftSendTo').value = address;
+        toast(t('scanSuccess'));
+    } else if (state.scanTarget === 'favorite') {
+        document.getElementById('favAddressInput').value = address;
+        toast(t('scanSuccess'));
+    }
+    
+    closeScanner();
+}
+
+async function closeScanner() {
     const modal = document.getElementById('scanModal');
     if (modal) modal.classList.add('closed');
+    
+    if (state.qrScanner) {
+        try {
+            await state.qrScanner.stop();
+            state.qrScanner.clear();
+        } catch (e) {}
+        state.qrScanner = null;
+    }
+    
     state.scanTarget = null;
 }
 
@@ -4971,7 +5042,7 @@ function openFavoritesForNFT() {
     showFavoritesPicker();
 }
 
-// حالت انتخاب: فقط آیتم‌ها کلیک‌پذیر (بدون دکمه کپی/حذف)
+// حالت انتخاب: فقط آیتم‌ها کلیک‌پذیر
 function showFavoritesPicker() {
     const container = document.getElementById('favoritesList');
     const modal = document.getElementById('favoritesModal');
@@ -6725,12 +6796,16 @@ async function init() {
     try {
         status(t('connecting'), 'info');
         
-        // 🆕 چک price.js
+        // چک price.js
         if (typeof window.NFT_PRICES === 'undefined') {
             console.warn('⚠️ price.js not loaded — NFT prices will be 0');
         } else {
             console.log('✅ price.js loaded:', window.NFT_PRICES);
         }
+        
+        // چک QR libraries
+        console.log('QRCode type:', typeof QRCode);
+        console.log('Html5Qrcode type:', typeof Html5Qrcode);
         
         await checkBiometricSupport();
         
@@ -6820,6 +6895,9 @@ window.addEventListener('load', function() {
 window.addEventListener('beforeunload', function() {
     if (state.priceUpdateInterval) {
         clearInterval(state.priceUpdateInterval);
+    }
+    if (state.qrScanner) {
+        try { state.qrScanner.stop(); } catch(e) {}
     }
 });
 </script>
