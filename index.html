@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>FoxEggs Wallet</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
 :root {
     --bg-primary: #0b0e1a;
@@ -310,26 +311,55 @@ body {
     align-items: center;
     margin-bottom: 14px;
     border: 1px solid var(--border-light);
-    cursor: pointer;
     transition: 0.2s;
     min-height: 44px;
+    gap: 6px;
 }
 
-.address-box:active { transform: scale(0.98); }
 .address-box .addr {
     font-size: 0.75rem;
     color: var(--text-secondary);
     word-break: break-all;
     flex: 1;
     font-family: monospace;
+    cursor: pointer;
 }
 .address-box .copy-icon {
     color: var(--accent-success);
     font-size: 0.65rem;
     background: var(--accent-bg-success);
-    padding: 4px 12px;
+    padding: 4px 10px;
     border-radius: 20px;
     white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.address-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.address-action-icon {
+    background: var(--accent-bg-light);
+    border: none;
+    color: var(--text-secondary);
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+    font-family: inherit;
+    flex-shrink: 0;
+}
+
+.address-action-icon:hover {
+    background: var(--bg-item-hover);
+    color: var(--accent-success);
 }
 
 .balance-grid {
@@ -362,12 +392,77 @@ body {
     align-items: center;
     justify-content: center;
     gap: 6px;
+    transition: filter 0.3s;
 }
 
 .balance-item .value .small {
     font-size: 0.7rem;
     font-weight: 400;
     color: var(--text-muted);
+}
+
+.balance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 4px;
+}
+
+.balance-eye-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    transition: 0.2s;
+    font-family: inherit;
+}
+
+.balance-eye-btn:hover {
+    background: var(--bg-item-hover);
+    color: var(--text-primary);
+}
+
+.balance-hidden {
+    filter: blur(8px);
+    user-select: none;
+}
+
+.usd-value {
+    font-size: 0.7rem;
+    color: var(--accent-gold);
+    margin-top: 4px;
+    font-weight: 500;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.usd-value.hidden-usd {
+    filter: blur(6px);
+    user-select: none;
+}
+
+.price-change {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+}
+
+.price-change.up {
+    background: rgba(74, 222, 128, 0.15);
+    color: var(--accent-success);
+}
+
+.price-change.down {
+    background: rgba(233, 69, 96, 0.15);
+    color: var(--accent-primary);
 }
 
 .section-header {
@@ -411,6 +506,7 @@ body {
     background: var(--accent-success);
     color: var(--bg-primary);
 }
+
 .input-group {
     display: flex;
     gap: 8px;
@@ -1337,6 +1433,282 @@ body {
 
 .hidden { display: none !important; }
 
+.qr-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background: #ffffff;
+    border-radius: 20px;
+    margin: 16px auto;
+    max-width: 280px;
+    min-height: 280px;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.qr-container img,
+.qr-container canvas {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+}
+
+.qr-address-text {
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    word-break: break-all;
+    padding: 12px;
+    background: var(--bg-input);
+    border-radius: 12px;
+    margin: 12px 0;
+    direction: ltr;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.qr-address-text:hover {
+    background: var(--bg-item-hover);
+}
+
+.scanner-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 12px auto;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+    aspect-ratio: 1/1;
+}
+
+.scanner-container video,
+.scanner-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+}
+
+.scanner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.scanner-frame {
+    width: 70%;
+    height: 70%;
+    border: 3px solid var(--accent-success);
+    border-radius: 20px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    animation: scanPulse 2s infinite;
+}
+
+@keyframes scanPulse {
+    0%, 100% { border-color: var(--accent-success); }
+    50% { border-color: var(--accent-primary); }
+}
+
+.favorites-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 12px 0;
+}
+
+.favorite-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--bg-input);
+    border-radius: 12px;
+    border: 1px solid var(--border-light);
+    transition: 0.2s;
+    gap: 8px;
+}
+
+.favorite-item:hover {
+    background: var(--bg-item-hover);
+}
+
+.favorite-item .fav-info {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+
+.favorite-item .fav-name {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.favorite-item .fav-address {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-family: monospace;
+    direction: ltr;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.favorite-item .fav-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.favorite-item .fav-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    transition: 0.2s;
+    font-family: inherit;
+}
+
+.favorite-item .fav-action-btn:hover {
+    background: var(--bg-item-hover);
+    color: var(--text-primary);
+}
+
+.favorite-item .fav-action-btn.delete:hover {
+    background: rgba(233, 69, 96, 0.15);
+    color: var(--accent-primary);
+}
+
+.swap-arrow-container {
+    display: flex;
+    justify-content: center;
+    margin: -8px 0;
+    position: relative;
+    z-index: 1;
+}
+
+.swap-arrow-btn {
+    background: var(--bg-secondary);
+    border: 3px solid var(--accent-success);
+    color: var(--accent-success);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.3s;
+    font-family: inherit;
+}
+
+.swap-arrow-btn:hover {
+    transform: rotate(180deg);
+    background: var(--accent-success);
+    color: var(--bg-primary);
+}
+
+.swap-token-box {
+    background: var(--bg-input);
+    border-radius: 16px;
+    padding: 14px;
+    margin: 8px 0;
+    border: 1px solid var(--border-light);
+}
+
+.swap-token-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.swap-token-input-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.swap-token-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.3rem;
+    font-weight: 700;
+    outline: none;
+    font-family: monospace;
+    min-width: 0;
+}
+
+.swap-token-input::placeholder {
+    color: var(--text-placeholder);
+    font-size: 1.1rem;
+}
+
+.swap-token-symbol {
+    background: var(--accent-bg-light);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.swap-info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin: 6px 4px;
+}
+
+.swap-info-row .val {
+    color: var(--text-secondary);
+    font-family: monospace;
+}
+
+.swap-balance {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.swap-balance:hover {
+    color: var(--accent-success);
+}
+
+/* NFT Count Badge */
+#nftCountBadge {
+    background: var(--accent-success);
+    color: var(--bg-primary);
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: none;
+    margin-right: 6px;
+}
+
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg-input); }
 ::-webkit-scrollbar-thumb {
@@ -1361,6 +1733,15 @@ body {
     .nft-grid, .nft-list { gap: 8px; }
     .nft-selector-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* ═══ Modal Z-Index ═══ */
+#favoritesModal { z-index: 1100 !important; }
+#addFavoriteModal { z-index: 1150 !important; }
+#qrModal { z-index: 1100 !important; }
+#scanModal { z-index: 1200 !important; }
+#settingsModal { z-index: 1100 !important; }
+#confirmTxModal { z-index: 1300 !important; }
+#successModal { z-index: 1400 !important; }
     </style>
 </head>
 <body>
@@ -1396,23 +1777,37 @@ body {
 
         <div class="status" id="status">🔌 در حال اتصال...</div>
 
-        <div class="address-box" id="addressBox" onclick="copyAddress()">
-            <span class="addr" id="addressDisplay">📋 کیف پول متصل نیست</span>
-            <span class="copy-icon" id="copyLabel">کپی</span>
+        <div class="address-box">
+            <span class="addr" id="addressDisplay" onclick="copyAddress()">📋 کیف پول متصل نیست</span>
+            <div class="address-actions">
+                <button class="address-action-icon" onclick="showQRCode()" title="QR" id="qrIconBtn">📱</button>
+                <button class="address-action-icon" onclick="copyAddress()" title="کپی" id="copyIconBtn">📋</button>
+            </div>
         </div>
 
         <div class="balance-grid">
             <div class="balance-item">
-                <div class="label" id="gasLabel">💰 موجودی AVAX</div>
-                <div class="value">
+                <div class="balance-header">
+                    <div class="label" id="gasLabel" style="margin:0;border:none;padding:0;">💰 موجودی AVAX</div>
+                    <button class="balance-eye-btn" onclick="toggleBalanceVisibility()" id="balanceEyeBtn">👁️</button>
+                </div>
+                <div class="value" id="avaxBalanceContainer">
                     <span id="avaxBalance">0</span>
                     <span class="small">AVAX</span>
                 </div>
+                <div class="usd-value" id="avaxUSDValue">~ $0.00</div>
             </div>
         </div>
 
+        <button class="btn btn-primary btn-full" onclick="showSwapModal()" id="swapMainBtn" style="margin-bottom: 8px;">
+            🔄 Swap (تبدیل توکن)
+        </button>
+
         <div class="section-header">
-            <div class="section-title" id="nftListLabel">🖼️ NFT ها</div>
+            <div class="section-title" id="nftListLabel" style="display:flex;align-items:center;gap:6px;">
+                🖼️ NFT ها
+                <span id="nftCountBadge">0</span>
+            </div>
             <button class="section-action-btn" onclick="showAllNFTs()" id="viewAllNFTsBtn">مشاهده همه</button>
         </div>
         <div class="nft-list" id="nftList">
@@ -1439,12 +1834,16 @@ body {
         <div class="section-title" id="managementLabel">🔐 مدیریت</div>
         <div class="btn-group">
             <button class="btn btn-outline" id="seedBtn" onclick="showSeed()">🔑 ۱۲ کلمه</button>
+            <button class="btn btn-outline" id="favoritesBtn" onclick="showFavorites()">⭐ آدرس‌های ذخیره‌شده</button>
+        </div>
+        <div class="btn-group" style="margin-top:6px;">
             <button class="btn btn-outline" id="exitWalletBtn" onclick="showExitWalletModal()">🚪 خروج از کیف پول</button>
         </div>
 
         <div class="footer-text" id="footerText">🦊 FoxEggs - آینده مالی غیرمتمرکز</div>
     </div>
 
+    <!-- ALL NFTs MODAL -->
     <div class="modal-overlay closed" id="allNFTsModal">
         <div class="modal-fullscreen">
             <div class="modal-header">
@@ -1457,6 +1856,7 @@ body {
         </div>
     </div>
 
+    <!-- NFT DETAIL MODAL -->
     <div class="modal-overlay closed" id="nftDetailModal">
         <div class="modal-fullscreen">
             <div class="modal-header">
@@ -1467,6 +1867,7 @@ body {
         </div>
     </div>
 
+    <!-- ALL TX MODAL -->
     <div class="modal-overlay closed" id="allTxModal">
         <div class="modal-fullscreen">
             <div class="modal-header">
@@ -1479,6 +1880,86 @@ body {
         </div>
     </div>
 
+    <!-- QR CODE MODAL -->
+    <div class="modal-overlay closed" id="qrModal">
+        <div class="modal">
+            <h2 style="color:var(--accent-success);text-align:center;">📱 QR Code آدرس</h2>
+            <div class="desc" style="text-align:center;">این کد را برای دریافت اسکن کنید</div>
+            
+            <div class="qr-container" id="qrContainer"></div>
+            
+            <div class="qr-address-text" id="qrAddressText" onclick="copyQrAddress()">
+                -
+            </div>
+            
+            <button class="btn btn-secondary btn-full" onclick="closeQRModal()" style="margin-top:8px;">
+                ❌ بستن
+            </button>
+        </div>
+    </div>
+
+    <!-- QR SCANNER MODAL -->
+    <div class="modal-overlay closed" id="scanModal">
+        <div class="modal">
+            <h2 style="color:var(--accent-success);text-align:center;">📷 اسکن QR Code</h2>
+            <div class="desc" style="text-align:center;">دوربین را سمت QR بگیرید</div>
+            
+            <div class="scanner-container" id="scannerContainer">
+                <div id="qrReader"></div>
+                <div class="scanner-overlay">
+                    <div class="scanner-frame"></div>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary btn-full" onclick="closeScanner()" style="margin-top:8px;">
+                ❌ بستن
+            </button>
+        </div>
+    </div>
+
+    <!-- FAVORITES MODAL -->
+    <div class="modal-overlay closed" id="favoritesModal">
+        <div class="modal">
+            <h2 style="color:var(--accent-warning);" id="favoritesModalTitle">⭐ آدرس‌های ذخیره‌شده</h2>
+            <div class="desc" id="favoritesModalDesc">آدرس‌های مورد علاقه‌تان برای ارسال سریع</div>
+            
+            <div class="favorites-list" id="favoritesList">
+                <div class="empty-state">هیچ آدرسی ذخیره نشده</div>
+            </div>
+            
+            <button class="btn btn-success btn-full" onclick="showAddFavoriteModal()" id="addFavBtn" style="margin-top:12px;">
+                ➕ افزودن آدرس جدید
+            </button>
+            <button class="btn btn-outline btn-full" onclick="closeFavorites()" style="margin-top:6px;">
+                ❌ بستن
+            </button>
+        </div>
+    </div>
+
+    <!-- ADD FAVORITE MODAL -->
+    <div class="modal-overlay closed" id="addFavoriteModal">
+        <div class="modal">
+            <h2 style="color:var(--accent-warning);">➕ افزودن آدرس</h2>
+            <div class="desc">یک نام و آدرس ذخیره کنید</div>
+            
+            <div class="input-group">
+                <input type="text" id="favNameInput" placeholder="نام (مثلاً: علی)" maxlength="30" />
+            </div>
+            <div class="input-group">
+                <input type="text" id="favAddressInput" placeholder="آدرس ولت (0x...)" />
+                <button class="btn btn-secondary" onclick="scanQRForFavorite()" style="padding: 10px 12px; flex-shrink:0;">📷</button>
+            </div>
+            
+            <button class="btn btn-success btn-full" onclick="saveFavorite()" style="margin-top:12px;">
+                ✅ ذخیره
+            </button>
+            <button class="btn btn-outline btn-full" onclick="closeAddFavorite()" style="margin-top:6px;">
+                ❌ لغو
+            </button>
+        </div>
+    </div>
+
+    <!-- SEND MODAL -->
     <div class="modal-overlay closed" id="sendModal">
         <div class="modal">
             <h2 style="color:var(--accent-success);" id="sendModalTitle">📤 ارسال</h2>
@@ -1496,6 +1977,8 @@ body {
             <div id="sendTokenSection" class="send-section">
                 <div class="input-group">
                     <input type="text" id="tokenSendTo" placeholder="آدرس گیرنده" />
+                    <button class="btn btn-secondary" onclick="openScannerForSend()" style="padding: 10px 12px; flex-shrink:0;">📷</button>
+                    <button class="btn btn-secondary" onclick="openFavoritesForSend()" style="padding: 10px 12px; flex-shrink:0;">⭐</button>
                 </div>
                 <div class="input-group">
                     <input type="number" id="tokenAmount" placeholder="مقدار (حداقل 0.001)" step="0.001" min="0.001" />
@@ -1515,6 +1998,8 @@ body {
                 </div>
                 <div class="input-group">
                     <input type="text" id="nftSendTo" placeholder="آدرس گیرنده" />
+                    <button class="btn btn-secondary" onclick="openScannerForNFT()" style="padding: 10px 12px; flex-shrink:0;">📷</button>
+                    <button class="btn btn-secondary" onclick="openFavoritesForNFT()" style="padding: 10px 12px; flex-shrink:0;">⭐</button>
                 </div>
                 <div class="input-group">
                     <input type="number" id="nftAmount" placeholder="تعداد" step="1" min="1" value="1" />
@@ -1530,6 +2015,63 @@ body {
         </div>
     </div>
 
+    <!-- SWAP MODAL -->
+    <div class="modal-overlay closed" id="swapModal">
+        <div class="modal">
+            <h2 style="color:var(--accent-primary);">🔄 Swap (تبدیل)</h2>
+            <div class="desc">توکن‌های خود را تبدیل کنید</div>
+            
+            <div class="swap-token-box">
+                <div class="swap-token-header">
+                    <span>از</span>
+                    <span class="swap-balance" id="swapFromBalance" onclick="setSwapFromMax()">
+                        موجودی: 0
+                    </span>
+                </div>
+                <div class="swap-token-input-row">
+                    <input type="number" class="swap-token-input" id="swapFromAmount" placeholder="0.0" step="any" min="0" />
+                    <span class="swap-token-symbol" id="swapFromSymbol">AVAX</span>
+                </div>
+            </div>
+            
+            <div class="swap-arrow-container">
+                <button class="swap-arrow-btn" onclick="swapDirection()">⇅</button>
+            </div>
+            
+            <div class="swap-token-box">
+                <div class="swap-token-header">
+                    <span>به</span>
+                    <span class="swap-balance" id="swapToBalance">موجودی: 0</span>
+                </div>
+                <div class="swap-token-input-row">
+                    <input type="number" class="swap-token-input" id="swapToAmount" placeholder="0.0" readonly />
+                    <span class="swap-token-symbol" id="swapToSymbol">USDC</span>
+                </div>
+            </div>
+            
+            <div class="swap-info-row">
+                <span>نرخ تبدیل:</span>
+                <span class="val" id="swapRateInfo">-</span>
+            </div>
+            <div class="swap-info-row">
+                <span>کارمزد:</span>
+                <span class="val" id="swapFeeInfo">-</span>
+            </div>
+            <div class="swap-info-row">
+                <span>Slippage:</span>
+                <span class="val">1%</span>
+            </div>
+            
+            <button class="btn btn-primary btn-full" onclick="startSwap()" id="swapBtn" style="margin-top:12px;">
+                🔄 Swap
+            </button>
+            <button class="btn btn-outline btn-full" onclick="closeSwapModal()" style="margin-top:6px;">
+                ❌ لغو
+            </button>
+        </div>
+    </div>
+
+    <!-- CONFIRM TX MODAL -->
     <div class="modal-overlay closed" id="confirmTxModal">
         <div class="confirm-modal">
             <div class="confirm-icon" id="confirmIcon">⚠️</div>
@@ -1557,6 +2099,7 @@ body {
         </div>
     </div>
 
+    <!-- SUCCESS MODAL -->
     <div class="modal-overlay closed" id="successModal">
         <div class="success-modal">
             <div class="success-icon">✓</div>
@@ -1571,6 +2114,7 @@ body {
         </div>
     </div>
 
+    <!-- TX DETAIL MODAL -->
     <div class="modal-overlay closed" id="txDetailModal">
         <div class="success-modal">
             <div id="txDetailContent"></div>
@@ -1580,6 +2124,7 @@ body {
         </div>
     </div>
 
+    <!-- SETTINGS MODAL -->
     <div class="modal-overlay closed" id="settingsModal">
         <div class="modal">
             <h2 style="color:var(--accent-success);" id="settingsTitleText">⚙️ تنظیمات</h2>
@@ -1660,6 +2205,7 @@ body {
         </div>
     </div>
 
+    <!-- ADD WALLET MODAL -->
     <div class="modal-overlay closed" id="addWalletModal">
         <div class="modal">
             <h2 id="addWalletTitle">➕ افزودن کیف پول جدید</h2>
@@ -1691,6 +2237,7 @@ body {
         </div>
     </div>
 
+    <!-- LOGIN MODAL -->
     <div class="modal-overlay" id="loginModal">
         <div class="modal">
             <h2 id="loginTitle">🦊 FoxEggs</h2>
@@ -1727,6 +2274,7 @@ body {
         </div>
     </div>
 
+    <!-- EXIT WALLET MODAL -->
     <div class="modal-overlay closed" id="exitWalletModal">
         <div class="modal">
             <div id="exitStep1">
@@ -1784,6 +2332,7 @@ body {
         </div>
     </div>
 
+    <!-- SEED MODAL -->
     <div class="modal-overlay closed" id="seedModal">
         <div class="modal">
             <h2 id="seedTitle">🔑 ۱۲ کلمه بازیابی</h2>
@@ -1835,9 +2384,7 @@ const isTelegram = typeof window.Telegram !== 'undefined' && window.Telegram.Web
 // THEME & SETTINGS MANAGER
 // ═══════════════════════════════════════════════════════════════
 const Settings = {
-    getTheme() { 
-        return localStorage.getItem('foxTheme') || 'dark'; 
-    },
+    getTheme() { return localStorage.getItem('foxTheme') || 'dark'; },
     setTheme(theme) {
         localStorage.setItem('foxTheme', theme);
         document.documentElement.setAttribute('data-theme', theme);
@@ -1848,48 +2395,18 @@ const Settings = {
             el.classList.toggle('active', el.dataset.theme === theme);
         });
     },
-    
-    getNotifSound() { 
-        return localStorage.getItem('foxNotifSound') !== 'false'; 
-    },
-    setNotifSound(val) { 
-        localStorage.setItem('foxNotifSound', val ? 'true' : 'false'); 
-    },
-    
-    getNotifVibrate() { 
-        return localStorage.getItem('foxNotifVibrate') !== 'false'; 
-    },
-    setNotifVibrate(val) { 
-        localStorage.setItem('foxNotifVibrate', val ? 'true' : 'false'); 
-    },
-    
-    getNotifDuration() { 
-        return parseInt(localStorage.getItem('foxNotifDuration') || '4'); 
-    },
-    setNotifDuration(val) { 
-        localStorage.setItem('foxNotifDuration', val); 
-    },
-    
-    getLang() { 
-        return localStorage.getItem('foxLang') || 'fa'; 
-    },
-    setLang(lang) { 
-        localStorage.setItem('foxLang', lang); 
-    },
-    
-    getBiometricEnabled() { 
-        return localStorage.getItem('foxBiometricEnabled') === 'true'; 
-    },
-    setBiometricEnabled(val) { 
-        localStorage.setItem('foxBiometricEnabled', val ? 'true' : 'false'); 
-    },
-    
-    getTxBiometricEnabled() { 
-        return localStorage.getItem('foxTxBiometricEnabled') === 'true'; 
-    },
-    setTxBiometricEnabled(val) { 
-        localStorage.setItem('foxTxBiometricEnabled', val ? 'true' : 'false'); 
-    }
+    getNotifSound() { return localStorage.getItem('foxNotifSound') !== 'false'; },
+    setNotifSound(val) { localStorage.setItem('foxNotifSound', val ? 'true' : 'false'); },
+    getNotifVibrate() { return localStorage.getItem('foxNotifVibrate') !== 'false'; },
+    setNotifVibrate(val) { localStorage.setItem('foxNotifVibrate', val ? 'true' : 'false'); },
+    getNotifDuration() { return parseInt(localStorage.getItem('foxNotifDuration') || '4'); },
+    setNotifDuration(val) { localStorage.setItem('foxNotifDuration', val); },
+    getLang() { return localStorage.getItem('foxLang') || 'fa'; },
+    setLang(lang) { localStorage.setItem('foxLang', lang); },
+    getBiometricEnabled() { return localStorage.getItem('foxBiometricEnabled') === 'true'; },
+    setBiometricEnabled(val) { localStorage.setItem('foxBiometricEnabled', val ? 'true' : 'false'); },
+    getBalanceHidden() { return localStorage.getItem('foxBalanceHidden') === 'true'; },
+    setBalanceHidden(val) { localStorage.setItem('foxBalanceHidden', val ? 'true' : 'false'); }
 };
 
 document.documentElement.setAttribute('data-theme', Settings.getTheme());
@@ -1936,12 +2453,6 @@ function toggleNotificationVibrate() {
             ? (currentLang === 'fa' ? 'ویبره فعال شد' : 'Vibration enabled')
             : (currentLang === 'fa' ? 'ویبره غیرفعال شد' : 'Vibration disabled')
     );
-}
-
-function changeNotifDuration(val) {
-    Settings.setNotifDuration(val);
-    const el = document.getElementById('notifDurationValue');
-    if (el) el.textContent = val + 's';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2041,7 +2552,6 @@ const NativeNotifications = {
             return result.display === 'granted';
         } catch (e) { return false; }
     },
-    
     async checkPermission() {
         if (!isNative) return false;
         try {
@@ -2051,7 +2561,6 @@ const NativeNotifications = {
             return result.display === 'granted';
         } catch (e) { return false; }
     },
-    
     async createChannels() {
         if (!isNative) return;
         try {
@@ -2070,7 +2579,6 @@ const NativeNotifications = {
             });
         } catch (e) {}
     },
-    
     async send(title, body, type = 'success') {
         showInAppBanner(type, title, body);
         if (!isNative) return;
@@ -2116,11 +2624,8 @@ const BiometricAuth = {
             if (!NativeBiometric) return { available: false, type: 'not-installed' };
             const result = await NativeBiometric.isAvailable();
             return { available: result.isAvailable, type: result.biometryType };
-        } catch (e) {
-            return { available: false, type: 'error' };
-        }
+        } catch (e) { return { available: false, type: 'error' }; }
     },
-    
     async verify(title = 'تأیید هویت') {
         if (!isNative) return { success: false };
         try {
@@ -2137,11 +2642,8 @@ const BiometricAuth = {
                 fallbackTitle: L.bioAuthFallback,
             });
             return { success: true };
-        } catch (e) {
-            return { success: false, error: e.message };
-        }
+        } catch (e) { return { success: false, error: e.message }; }
     },
-    
     async saveCredentials(username, password) {
         if (!isNative) return false;
         try {
@@ -2155,7 +2657,6 @@ const BiometricAuth = {
             return true;
         } catch (e) { return false; }
     },
-    
     async getCredentials() {
         if (!isNative) return null;
         try {
@@ -2164,7 +2665,6 @@ const BiometricAuth = {
             return await NativeBiometric.getCredentials({ server: 'foxeggs.wallet' });
         } catch (e) { return null; }
     },
-    
     async deleteCredentials() {
         if (!isNative) return false;
         try {
@@ -2205,10 +2705,59 @@ const CONFIG = {
         pageSize: 100
     },
     
-    snowScan: {
-        apiKey: 'V5K5N58BRT84JKIECIFP87ZAHFYZY84ABT',
-        baseUrl: 'https://api.snowscan.xyz/api',
-        chainId: 43114
+    coinPaprika: {
+        baseUrl: 'https://api.coinpaprika.com/v1',
+        avaxId: 'avax-avalanche'
+    },
+    
+    pangolin: {
+        routerAddress: '0xE54Ca86531e17Ef3616d22Ca28b0D458b6C89106',
+        routerABI: [
+            'function getAmountsOut(uint amountIn, address[] path) view returns (uint[] amounts)',
+            'function swapExactAVAXForTokens(uint amountOutMin, address[] path, address to, uint deadline) payable returns (uint[] amounts)',
+            'function swapExactTokensForAVAX(uint amountIn, uint amountOutMin, address[] path, address to, uint deadline) returns (uint[] amounts)',
+            'function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] path, address to, uint deadline) returns (uint[] amounts)'
+        ],
+        tokens: {
+            AVAX: {
+                address: '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7',
+                decimals: 18,
+                symbol: 'AVAX',
+                isNative: true
+            },
+            USDC: {
+                address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E',
+                decimals: 6,
+                symbol: 'USDC',
+                isNative: false
+            },
+            USDT: {
+                address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7',
+                decimals: 6,
+                symbol: 'USDT',
+                isNative: false
+            },
+            WETH: {
+                address: '0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB',
+                decimals: 18,
+                symbol: 'WETH.e',
+                isNative: false
+            },
+            WBTC: {
+                address: '0x50b7545627a5162F82A992c33b87aDc75187B218',
+                decimals: 8,
+                symbol: 'WBTC.e',
+                isNative: false
+            },
+            JOE: {
+                address: '0x6e84a6216eA6aCCaC0d42b5a6598716B1A73eE96',
+                decimals: 18,
+                symbol: 'JOE',
+                isNative: false
+            }
+        },
+        slippage: 1.0,
+        deadlineMinutes: 20
     },
     
     nftContracts: [
@@ -2224,7 +2773,7 @@ const CONFIG = {
         }
     ],
     
-    nftIdsToCheck: 2
+    nftIdsToCheck: 5
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -2247,8 +2796,20 @@ let state = {
     txHistory: [],
     currentSendTab: 'token',
     exitStep: 1,
-    lastAvaxBalance: null,
-    lastNFTCount: 0
+    lastAvaxBalance: 0,
+    avaxPrice: 0,
+    avaxChange24h: 0,
+    priceUpdateInterval: null,
+    balanceHidden: Settings.getBalanceHidden(),
+    favorites: [],
+    swapFromToken: 'AVAX',
+    swapToToken: 'USDC',
+    swapFromAmount: 0,
+    swapToAmount: 0,
+    swapFromBalance: '0',
+    swapAmountOutWei: null,
+    scanTarget: null,
+    favoritesForTarget: null
 };
 
 let newMnemonic = '';
@@ -2260,7 +2821,7 @@ document.documentElement.dir = currentLang === 'en' ? 'ltr' : 'rtl';
 document.documentElement.lang = currentLang;
 
 // ═══════════════════════════════════════════════════════════════
-// TRANSLATIONS (کامل)
+// TRANSLATIONS
 // ═══════════════════════════════════════════════════════════════
 const translations = {
     fa: {
@@ -2272,17 +2833,17 @@ const translations = {
         notConnected: '❌ کیف پول متصل نیست',
         loggedOut: '👋 خارج شدید',
         networkError: '❌ خطا در اتصال به شبکه',
-        
         copy: 'کپی',
         gas: '💰 موجودی AVAX',
         nfts: '🖼️ NFT ها',
         viewAll: 'مشاهده همه',
         send: 'ارسال',
+        swap: '🔄 تبدیل (Swap)',
         txHistory: '📜 تاریخچه',
         settings: '⚙️ تنظیمات',
         management: '🔐 مدیریت',
         wallets: '👛 کیف پول‌ها',
-        
+        favorites: '⭐ آدرس‌های ذخیره‌شده',
         seed: '🔑 ۱۲ کلمه',
         logout: '🚪 خروج از کیف پول',
         openSettings: '⚙️ باز کردن تنظیمات',
@@ -2295,7 +2856,8 @@ const translations = {
         exitFinal: '🗑️ بله، کیف پول را حذف کن',
         hide: '🔒 مخفی کردن',
         view: '🔓 مشاهده',
-        
+        save: '✅ ذخیره',
+        add: '➕ افزودن',
         recipient: 'آدرس گیرنده',
         nftAmount: 'تعداد',
         password: 'رمز عبور',
@@ -2305,13 +2867,12 @@ const translations = {
         seedPlaceholder: '۱۲ کلمه را وارد کنید...',
         generateClick: 'برای تولید کلیک کنید',
         tokenAmount: 'مقدار (حداقل 0.001)',
-        
         noNFT: '🎨 هیچ NFT در این کیف پول نیست',
         noNFTInitial: 'برای مشاهده NFT، کیف پول را بسازید',
         noTx: 'هنوز تراکنشی ثبت نشده',
         noWallets: 'هیچ کیف پولی وجود ندارد',
         noNFTToSend: 'NFT ای برای ارسال وجود ندارد',
-        
+        noFavorites: 'هیچ آدرسی ذخیره نشده',
         sendTitle: '📤 ارسال',
         sendDesc: 'چه چیزی می‌خواهید ارسال کنید؟',
         sendTokenTab: '💰 توکن (AVAX)',
@@ -2319,16 +2880,18 @@ const translations = {
         sendTokenBtn: 'ارسال توکن',
         sendNFTBtn: 'ارسال NFT',
         balanceInfo: 'موجودی',
-        
         confirmTitle: '⚠️ تأیید ارسال',
         confirmSub: 'برای ارسال، هویت خود را تأیید کنید',
         confirmSubBio: 'برای ارسال، اثر انگشت خود را بزنید',
         confirmBioBtn: '👆 تأیید با اثر انگشت',
         confirmPassBtn: '✅ تأیید و ارسال',
-        
+        confirmSwapTitle: '⚠️ تأیید Swap',
+        confirmSwapSub: 'برای تبدیل، هویت خود را تأیید کنید',
+        confirmSwapBtn: '✅ تأیید و تبدیل',
         successTitle: '✅ ارسال موفق!',
         successSub: 'تراکنش با موفقیت انجام شد',
-        
+        successSwapTitle: '✅ Swap موفق!',
+        successSwapSub: 'تبدیل با موفقیت انجام شد',
         detailTokenId: '🆔 شناسه:',
         detailAmount: '📦 تعداد:',
         detailFrom: '📤 از:',
@@ -2337,13 +2900,11 @@ const translations = {
         detailTime: '🕐 زمان:',
         detailHash: '🔗 هش:',
         detailValue: '💰 مقدار:',
-        detailType: '📋 نوع:',
-        
         typeReceiveAVAX: '📥 دریافت AVAX',
         typeSendAVAX: '📤 ارسال AVAX',
         typeReceiveNFT: '📥 دریافت NFT',
         typeSendNFT: '📤 ارسال NFT',
-        
+        typeSwap: '🔄 Swap',
         settingsDesc: 'تنظیمات امنیتی و اپلیکیشن',
         themeSection: '🎨 تم رنگی',
         themeDark: 'تیره',
@@ -2359,15 +2920,13 @@ const translations = {
         notifSoundDesc: 'پخش صدا برای اعلان‌ها',
         notifVibrateTitle: '📳 ویبره',
         notifVibrateDesc: 'لرزش هنگام اعلان',
-        
         bioChecking: 'در حال بررسی...',
         bioEnabled: '✅ فعال',
         bioDisabled: 'غیرفعال',
         bioNotSupported: 'غیرفعال (پشتیبانی نمی‌شود)',
-        bioTelegramWarning: '⚠️ Telegram Mini App از اثر انگشت پشتیبانی نمی‌کند. از نسخه APK استفاده کنید.',
-        bioWebWarning: '⚠️ در مرورگر وب پشتیبانی نمی‌شود. از نسخه APK استفاده کنید.',
-        bioDeviceWarning: '⚠️ دستگاه شما سنسور اثر انگشت ندارد یا تنظیم نشده است.',
-        
+        bioTelegramWarning: '⚠️ Telegram Mini App از اثر انگشت پشتیبانی نمی‌کند.',
+        bioWebWarning: '⚠️ در مرورگر وب پشتیبانی نمی‌شود.',
+        bioDeviceWarning: '⚠️ دستگاه شما سنسور اثر انگشت ندارد.',
         loginTitle: '🦊 FoxEggs',
         loginDesc: 'به کیف پول خود خوش آمدید',
         addWalletTitle: '➕ افزودن کیف پول جدید',
@@ -2382,24 +2941,33 @@ const translations = {
         import: '✅ وارد کردن',
         unlock: '🔓 باز کردن',
         viewSeed: '🔓 مشاهده',
-        
         createWarning: '⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!',
         importWarning: '⚠️ ۱۲ کلمه کیف پول خود را وارد کنید',
         seedTitle: '🔑 ۱۲ کلمه بازیابی',
         seedWarning: '⚠️ این کلمات را با هیچکس به اشتراک نگذارید!',
         seedVerifyDesc: 'برای مشاهده، هویت خود را تأیید کنید',
-        
         exitTitle1: '🚪 خروج از کیف پول',
         exitTitle2: '🔐 تأیید هویت',
         exitTitle3: '⚠️ تأیید نهایی',
         exitDesc2: 'برای ادامه، هویت خود را تأیید کنید',
-        exitWarning1: '⚠️ <b>هشدار مهم!</b><br><br>با خروج، این کیف پول <b>کاملاً از اپ حذف می‌شود</b>.<br><br>برای بازگشت، فقط با <b>۱۲ کلمه بازیابی</b> می‌توانید دوباره اضافه کنید.<br><br>مطمئن شوید که ۱۲ کلمه را در جای امنی ذخیره کرده‌اید.',
+        exitWarning1: '⚠️ <b>هشدار مهم!</b><br><br>با خروج، این کیف پول <b>کاملاً از اپ حذف می‌شود</b>.<br><br>برای بازگشت، فقط با <b>۱۲ کلمه بازیابی</b> می‌توانید دوباره اضافه کنید.',
         exitWarning3: '<b>آیا مطمئن هستید؟</b><br><br>این کیف پول کاملاً حذف خواهد شد.<br>فقط با ۱۲ کلمه می‌توانید بازگردید.',
-        
         nftDetailTitle: '🖼️ جزئیات NFT',
         allNFTsTitle: '🖼️ همه NFT ها',
         allTxTitle: '📜 تاریخچه تراکنش ها',
-        
+        favoritesTitle: '⭐ آدرس‌های ذخیره‌شده',
+        favoritesPickerTitle: '⭐ انتخاب آدرس',
+        favoritesPickerDesc: 'یک آدرس از لیست انتخاب کنید',
+        favoritesManageDesc: 'آدرس‌های مورد علاقه‌تان برای ارسال سریع',
+        addFavoriteTitle: '➕ افزودن آدرس',
+        favNamePlaceholder: 'نام (مثلاً: علی)',
+        favAddressPlaceholder: 'آدرس ولت (0x...)',
+        qrTitle: '📱 QR Code آدرس',
+        qrDesc: 'این کد را برای دریافت اسکن کنید',
+        qrScanTitle: '📷 اسکن QR Code',
+        qrScanDesc: 'دوربین را سمت QR بگیرید',
+        swapTitle: '🔄 Swap (تبدیل)',
+        swapDesc: 'توکن‌های خود را تبدیل کنید',
         copied: '✅ آدرس کپی شد',
         hashCopied: '✅ هش تراکنش کپی شد',
         seedGenerated: '✅ ۱۲ کلمه ساخته شد',
@@ -2412,12 +2980,13 @@ const translations = {
         invalidAmount: '❌ مقدار نامعتبر است',
         minAmount: '❌ حداقل مقدار 0.001 AVAX است',
         insufficientBalance: '❌ موجودی کافی نیست',
-        invalidNFT: '❌ ابتدا یک NFT را انتخاب کنید',
         selectNFTFirst: '❌ ابتدا یک NFT را انتخاب کنید',
         sending: '🔄 در حال ارسال...',
+        swapping: '🔄 در حال تبدیل...',
         waitingNetwork: '⏳ در انتظار تأیید شبکه...',
         txCancelled: '❌ تراکنش لغو شد',
         sendingError: '❌ خطا در ارسال',
+        swapError: '❌ خطا در Swap',
         switchSuccess: '🔄 سوئیچ شد',
         walletDeleted: '🗑️ حذف شد',
         deleteConfirm: 'از حذف این کیف پول مطمئن هستید؟',
@@ -2436,17 +3005,19 @@ const translations = {
         fingerprintLogin: '👆 ورود با اثر انگشت',
         wordsDisplayed: '✅ کلمات نمایش داده شد',
         walletDeletedPermanently: '🗑️ کیف پول حذف شد',
-        txPending: '⏳ در انتظار تأیید...',
-        balanceLoaded: '✅ موجودی بروز شد',
-        noTxToSend: '❌ اول کیف پول را باز کنید',
-        noNetwork: '❌ اتصال به شبکه ممکن نیست',
         loadingNFTs: '🔄 در حال دریافت NFT ها...',
         loadingTxs: '🔄 در حال دریافت تاریخچه...',
         nftsUpdated: '✅ NFT ها بروز شدند',
         txsUpdated: '✅ تاریخچه بروز شد',
-        loadingMore: 'در حال بارگذاری...',
-        allLoaded: 'همه چیز لود شد',
-        
+        balanceHidden: '🙈 موجودی مخفی شد',
+        balanceShown: '👁️ موجودی نمایش داده شد',
+        favoriteAdded: '✅ آدرس ذخیره شد',
+        favoriteDeleted: '🗑️ آدرس حذف شد',
+        favoriteNameRequired: '❌ نام را وارد کنید',
+        favoriteInvalidAddress: '❌ آدرس معتبر نیست',
+        cameraError: '❌ دوربین در دسترس نیست',
+        scanSuccess: '✅ اسکن موفق',
+        scanInvalid: '❌ QR معتبر نیست',
         bioAuthTitle: 'احراز هویت',
         bioAuthSubtitle: 'برای تأیید از اثر انگشت استفاده کنید',
         bioAuthDescription: 'اثر انگشت خود را روی سنسور بگذارید',
@@ -2454,9 +3025,9 @@ const translations = {
         bioLoginPrompt: 'ورود به FoxEggs Wallet',
         bioEnablePrompt: 'تأیید فعال‌سازی اثر انگشت',
         bioTxPrompt: 'تأیید تراکنش',
+        bioSwapPrompt: 'تأیید Swap',
         bioSeedPrompt: 'تأیید مشاهده ۱۲ کلمه',
         bioExitPrompt: 'تأیید خروج از کیف پول',
-        
         footer: '🦊 FoxEggs - آینده مالی غیرمتمرکز'
     },
     en: {
@@ -2468,17 +3039,17 @@ const translations = {
         notConnected: '❌ Wallet not connected',
         loggedOut: '👋 Logged out',
         networkError: '❌ Network connection error',
-        
         copy: 'Copy',
         gas: '💰 AVAX Balance',
         nfts: '🖼️ NFTs',
         viewAll: 'View All',
         send: 'Send',
+        swap: '🔄 Swap',
         txHistory: '📜 History',
         settings: '⚙️ Settings',
         management: '🔐 Management',
         wallets: '👛 Wallets',
-        
+        favorites: '⭐ Saved Addresses',
         seed: '🔑 12 Words',
         logout: '🚪 Exit Wallet',
         openSettings: '⚙️ Open Settings',
@@ -2491,7 +3062,8 @@ const translations = {
         exitFinal: '🗑️ Yes, delete wallet',
         hide: '🔒 Hide',
         view: '🔓 View',
-        
+        save: '✅ Save',
+        add: '➕ Add',
         recipient: 'Recipient Address',
         nftAmount: 'Quantity',
         password: 'Password',
@@ -2501,13 +3073,12 @@ const translations = {
         seedPlaceholder: 'Enter 12 words...',
         generateClick: 'Click to generate',
         tokenAmount: 'Amount (min 0.001)',
-        
         noNFT: '🎨 No NFTs in this wallet',
         noNFTInitial: 'Create a wallet to view NFTs',
         noTx: 'No transactions yet',
         noWallets: 'No wallets available',
         noNFTToSend: 'No NFTs to send',
-        
+        noFavorites: 'No saved addresses',
         sendTitle: '📤 Send',
         sendDesc: 'What would you like to send?',
         sendTokenTab: '💰 Token (AVAX)',
@@ -2515,16 +3086,18 @@ const translations = {
         sendTokenBtn: 'Send Token',
         sendNFTBtn: 'Send NFT',
         balanceInfo: 'Balance',
-        
         confirmTitle: '⚠️ Confirm Send',
         confirmSub: 'Authenticate to send',
         confirmSubBio: 'Place your finger to send',
         confirmBioBtn: '👆 Confirm with Fingerprint',
         confirmPassBtn: '✅ Confirm & Send',
-        
+        confirmSwapTitle: '⚠️ Confirm Swap',
+        confirmSwapSub: 'Authenticate to swap',
+        confirmSwapBtn: '✅ Confirm & Swap',
         successTitle: '✅ Sent Successfully!',
         successSub: 'Transaction completed successfully',
-        
+        successSwapTitle: '✅ Swap Successful!',
+        successSwapSub: 'Swap completed successfully',
         detailTokenId: '🆔 ID:',
         detailAmount: '📦 Amount:',
         detailFrom: '📤 From:',
@@ -2533,13 +3106,11 @@ const translations = {
         detailTime: '🕐 Time:',
         detailHash: '🔗 Hash:',
         detailValue: '💰 Value:',
-        detailType: '📋 Type:',
-        
         typeReceiveAVAX: '📥 Received AVAX',
         typeSendAVAX: '📤 Sent AVAX',
         typeReceiveNFT: '📥 Received NFT',
         typeSendNFT: '📤 Sent NFT',
-        
+        typeSwap: '🔄 Swap',
         settingsDesc: 'Security and app settings',
         themeSection: '🎨 Color Theme',
         themeDark: 'Dark',
@@ -2555,15 +3126,13 @@ const translations = {
         notifSoundDesc: 'Play sound for notifications',
         notifVibrateTitle: '📳 Vibration',
         notifVibrateDesc: 'Vibrate on notifications',
-        
         bioChecking: 'Checking...',
         bioEnabled: '✅ Enabled',
         bioDisabled: 'Disabled',
         bioNotSupported: 'Disabled (not supported)',
-        bioTelegramWarning: '⚠️ Telegram Mini App does not support biometrics. Use APK.',
-        bioWebWarning: '⚠️ Not supported in web browser. Use APK.',
+        bioTelegramWarning: '⚠️ Telegram Mini App does not support biometrics.',
+        bioWebWarning: '⚠️ Not supported in web browser.',
         bioDeviceWarning: '⚠️ Your device has no fingerprint sensor.',
-        
         loginTitle: '🦊 FoxEggs',
         loginDesc: 'Welcome to your wallet',
         addWalletTitle: '➕ Add New Wallet',
@@ -2578,24 +3147,33 @@ const translations = {
         import: '✅ Import',
         unlock: '🔓 Unlock',
         viewSeed: '🔓 View',
-        
         createWarning: '⚠️ Save these 12 words in a safe place!',
         importWarning: '⚠️ Enter your 12 wallet words',
         seedTitle: '🔑 12 Recovery Words',
         seedWarning: '⚠️ Never share these words with anyone!',
         seedVerifyDesc: 'Authenticate to view',
-        
         exitTitle1: '🚪 Exit Wallet',
         exitTitle2: '🔐 Authentication',
         exitTitle3: '⚠️ Final Confirmation',
         exitDesc2: 'Authenticate to continue',
-        exitWarning1: '⚠️ <b>Important Warning!</b><br><br>By exiting, this wallet will be <b>completely removed from the app</b>.<br><br>To return, you can only use the <b>12 recovery words</b>.<br><br>Make sure you have saved the 12 words in a safe place.',
+        exitWarning1: '⚠️ <b>Important Warning!</b><br><br>By exiting, this wallet will be <b>completely removed from the app</b>.<br><br>To return, use the <b>12 recovery words</b>.',
         exitWarning3: '<b>Are you sure?</b><br><br>This wallet will be completely removed.<br>You can only return with the 12 words.',
-        
         nftDetailTitle: '🖼️ NFT Details',
         allNFTsTitle: '🖼️ All NFTs',
         allTxTitle: '📜 Transaction History',
-        
+        favoritesTitle: '⭐ Saved Addresses',
+        favoritesPickerTitle: '⭐ Select Address',
+        favoritesPickerDesc: 'Choose an address from the list',
+        favoritesManageDesc: 'Your favorite addresses for quick sending',
+        addFavoriteTitle: '➕ Add Address',
+        favNamePlaceholder: 'Name (e.g., Ali)',
+        favAddressPlaceholder: 'Wallet address (0x...)',
+        qrTitle: '📱 QR Code',
+        qrDesc: 'Scan this code to receive',
+        qrScanTitle: '📷 Scan QR Code',
+        qrScanDesc: 'Point camera at QR code',
+        swapTitle: '🔄 Swap',
+        swapDesc: 'Convert your tokens',
         copied: '✅ Address copied',
         hashCopied: '✅ Transaction hash copied',
         seedGenerated: '✅ 12 words generated',
@@ -2608,12 +3186,13 @@ const translations = {
         invalidAmount: '❌ Invalid amount',
         minAmount: '❌ Minimum is 0.001 AVAX',
         insufficientBalance: '❌ Insufficient balance',
-        invalidNFT: '❌ Select an NFT first',
         selectNFTFirst: '❌ Please select an NFT first',
         sending: '🔄 Sending...',
+        swapping: '🔄 Swapping...',
         waitingNetwork: '⏳ Waiting for network confirmation...',
         txCancelled: '❌ Transaction cancelled',
         sendingError: '❌ Sending error',
+        swapError: '❌ Swap error',
         switchSuccess: '🔄 Switched',
         walletDeleted: '🗑️ Deleted',
         deleteConfirm: 'Are you sure you want to delete this wallet?',
@@ -2632,17 +3211,19 @@ const translations = {
         fingerprintLogin: '👆 Login with Fingerprint',
         wordsDisplayed: '✅ Words displayed',
         walletDeletedPermanently: '🗑️ Wallet deleted',
-        txPending: '⏳ Pending confirmation...',
-        balanceLoaded: '✅ Balance updated',
-        noTxToSend: '❌ Open wallet first',
-        noNetwork: '❌ Network connection failed',
         loadingNFTs: '🔄 Loading NFTs...',
         loadingTxs: '🔄 Loading history...',
         nftsUpdated: '✅ NFTs updated',
         txsUpdated: '✅ History updated',
-        loadingMore: 'Loading...',
-        allLoaded: 'All loaded',
-        
+        balanceHidden: '🙈 Balance hidden',
+        balanceShown: '👁️ Balance shown',
+        favoriteAdded: '✅ Address saved',
+        favoriteDeleted: '🗑️ Address deleted',
+        favoriteNameRequired: '❌ Enter a name',
+        favoriteInvalidAddress: '❌ Invalid address',
+        cameraError: '❌ Camera not available',
+        scanSuccess: '✅ Scan successful',
+        scanInvalid: '❌ Invalid QR',
         bioAuthTitle: 'Authentication',
         bioAuthSubtitle: 'Use fingerprint to confirm',
         bioAuthDescription: 'Place your finger on the sensor',
@@ -2650,9 +3231,9 @@ const translations = {
         bioLoginPrompt: 'Login to FoxEggs Wallet',
         bioEnablePrompt: 'Confirm fingerprint enable',
         bioTxPrompt: 'Confirm transaction',
+        bioSwapPrompt: 'Confirm swap',
         bioSeedPrompt: 'Confirm viewing 12 words',
         bioExitPrompt: 'Confirm wallet exit',
-        
         footer: '🦊 FoxEggs - The Future of DeFi'
     }
 };
@@ -2660,7 +3241,6 @@ const translations = {
 function t(key) { 
     return translations[currentLang][key] || key; 
 }
-
 // ═══════════════════════════════════════════════════════════════
 // SMART RPC FINDER
 // ═══════════════════════════════════════════════════════════════
@@ -2713,6 +3293,13 @@ function status(msg, type = 'info') {
     el.className = `status ${type}`;
 }
 
+// 🆕 تابع جدید: برگرداندن status به "متصل"
+function restoreConnectedStatus() {
+    if (state.unlocked && state.address) {
+        status(t('connected'), 'success');
+    }
+}
+
 function shortAddr(a) {
     if (!a) return currentLang === 'fa' ? 'وارد نشده' : 'N/A';
     return a.slice(0, 6) + '...' + a.slice(-4);
@@ -2725,6 +3312,10 @@ function fullAddr(a) {
 
 function formatAmount(amount, decimals = 6) {
     return parseFloat(amount).toFixed(decimals);
+}
+
+function formatUSD(amount) {
+    return parseFloat(amount).toFixed(2);
 }
 
 function formatTime(timestamp) {
@@ -2760,8 +3351,7 @@ async function copyToClipboard(text) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🔐 STRONG ENCRYPTION (AES-GCM 256 + PBKDF2) با پشتیبانی نسخه قدیم
-// ساختار: [salt 16][iv 12][ciphertext]
+// 🔐 ENCRYPTION (AES-GCM 256 + PBKDF2)
 // ═══════════════════════════════════════════════════════════════
 async function encryptSecure(text, pass) {
     const encoder = new TextEncoder();
@@ -2861,7 +3451,6 @@ async function decryptSecure(encryptedData, pass) {
         }
         
     } else {
-        // نسخه قدیمی XOR
         try {
             const t2 = atob(encryptedData);
             let r = '';
@@ -2876,7 +3465,7 @@ async function decryptSecure(encryptedData, pass) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🔄 مهاجرت خودکار (XOR → AES) - بی‌صدا
+// 🔄 مهاجرت خودکار XOR → AES
 // ═══════════════════════════════════════════════════════════════
 async function tryMigrateWallet(wallet, password) {
     if (!wallet || !wallet.encryptedSeed) return;
@@ -2904,10 +3493,113 @@ async function tryMigrateWallet(wallet, password) {
         }
         
         saveWallets();
-        console.log('🔐 Wallet upgraded silently:', wallet.address);
+        console.log('🔐 Wallet upgraded silently');
     } catch (e) {
         console.log('⏸ Migration skipped');
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 💰 PRICE FETCHING (CoinPaprika)
+// ═══════════════════════════════════════════════════════════════
+async function fetchAVAXPrice() {
+    try {
+        const url = `${CONFIG.coinPaprika.baseUrl}/tickers/${CONFIG.coinPaprika.avaxId}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+            console.log('Price fetch failed:', response.status);
+            return null;
+        }
+        
+        const data = await response.json();
+        
+        const price = parseFloat(data.quotes?.USD?.price || 0);
+        const change24h = parseFloat(data.quotes?.USD?.percent_change_24h || 0);
+        
+        return { price, change24h };
+    } catch (e) {
+        console.error('Price error:', e);
+        return null;
+    }
+}
+
+async function updateAVAXPrice() {
+    const priceData = await fetchAVAXPrice();
+    if (!priceData) return;
+    
+    state.avaxPrice = priceData.price;
+    state.avaxChange24h = priceData.change24h;
+    
+    updateUSDDisplay();
+}
+
+function updateUSDDisplay() {
+    const usdEl = document.getElementById('avaxUSDValue');
+    if (!usdEl) return;
+    
+    if (!state.avaxPrice || !state.lastAvaxBalance) {
+        usdEl.textContent = '~ $0.00';
+        return;
+    }
+    
+    const usdValue = state.lastAvaxBalance * state.avaxPrice;
+    const change = state.avaxChange24h;
+    const changeClass = change >= 0 ? 'up' : 'down';
+    const changeSign = change >= 0 ? '+' : '';
+    
+    usdEl.innerHTML = `
+        <span>~ $${formatUSD(usdValue)}</span>
+        <span class="price-change ${changeClass}">${changeSign}${change.toFixed(2)}%</span>
+    `;
+    
+    if (state.balanceHidden) {
+        usdEl.classList.add('hidden-usd');
+    }
+}
+
+function startPriceUpdater() {
+    if (state.priceUpdateInterval) {
+        clearInterval(state.priceUpdateInterval);
+    }
+    
+    updateAVAXPrice();
+    
+    state.priceUpdateInterval = setInterval(() => {
+        updateAVAXPrice();
+    }, 60000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🙈 HIDDEN BALANCE
+// ═══════════════════════════════════════════════════════════════
+function applyBalanceVisibility() {
+    const balanceContainer = document.getElementById('avaxBalanceContainer');
+    const usdEl = document.getElementById('avaxUSDValue');
+    const eyeBtn = document.getElementById('balanceEyeBtn');
+    
+    if (!balanceContainer || !eyeBtn) return;
+    
+    if (state.balanceHidden) {
+        balanceContainer.classList.add('balance-hidden');
+        usdEl?.classList.add('hidden-usd');
+        eyeBtn.textContent = '🙈';
+    } else {
+        balanceContainer.classList.remove('balance-hidden');
+        usdEl?.classList.remove('hidden-usd');
+        eyeBtn.textContent = '👁️';
+    }
+}
+
+function toggleBalanceVisibility() {
+    state.balanceHidden = !state.balanceHidden;
+    Settings.setBalanceHidden(state.balanceHidden);
+    applyBalanceVisibility();
+    
+    showNotification('info',
+        state.balanceHidden ? '🙈' : '👁️',
+        state.balanceHidden ? t('balanceHidden') : t('balanceShown')
+    );
 }
 // ═══════════════════════════════════════════════════════════════
 // LANGUAGE TOGGLE
@@ -2946,17 +3638,18 @@ function updateUI() {
         document.getElementById('addressDisplay').textContent = L.notConnectedAddr;
     }
     
-    document.getElementById('copyLabel').textContent = L.copy;
     document.getElementById('gasLabel').textContent = L.gas;
-    document.getElementById('nftListLabel').textContent = L.nfts;
+    document.getElementById('nftListLabel').childNodes[0].textContent = L.nfts + ' ';
     document.getElementById('viewAllNFTsBtn').textContent = L.viewAll;
     document.getElementById('txHistoryLabel').textContent = L.txHistory;
     document.getElementById('viewAllTxBtn').textContent = L.viewAll;
     document.getElementById('settingsLabel').textContent = L.settings;
     document.getElementById('managementLabel').textContent = L.management;
     document.getElementById('sendMainBtn').textContent = '📤 ' + L.send;
+    document.getElementById('swapMainBtn').textContent = L.swap;
     document.getElementById('openSettingsBtn').textContent = L.openSettings;
     document.getElementById('seedBtn').textContent = L.seed;
+    document.getElementById('favoritesBtn').textContent = L.favorites;
     document.getElementById('exitWalletBtn').textContent = L.logout;
     document.getElementById('footerText').textContent = L.footer;
     
@@ -3091,6 +3784,10 @@ function updateUI() {
     
     updateWalletDropdown();
     renderTxHistory();
+    updateFavoritesList();
+    
+    updateUSDDisplay();
+    applyBalanceVisibility();
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3112,13 +3809,9 @@ function updateBioStatus() {
         statusText.style.color = 'var(--accent-primary)';
         warning.style.display = 'block';
         
-        if (isTelegram) {
-            warning.textContent = t('bioTelegramWarning');
-        } else if (!isNative) {
-            warning.textContent = t('bioWebWarning');
-        } else {
-            warning.textContent = t('bioDeviceWarning');
-        }
+        if (isTelegram) warning.textContent = t('bioTelegramWarning');
+        else if (!isNative) warning.textContent = t('bioWebWarning');
+        else warning.textContent = t('bioDeviceWarning');
         return;
     }
     
@@ -3136,7 +3829,7 @@ function updateBioStatus() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TOGGLE BIOMETRIC FROM SETTINGS
+// TOGGLE BIOMETRIC
 // ═══════════════════════════════════════════════════════════════
 async function toggleBiometricFromSettings() {
     const toggle = document.getElementById('bioToggle');
@@ -3177,18 +3870,12 @@ async function toggleBiometricFromSettings() {
     updateBioStatus();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CHECK BIOMETRIC SUPPORT
-// ═══════════════════════════════════════════════════════════════
 async function checkBiometricSupport() {
     const result = await BiometricAuth.checkAvailability();
     biometricAvailable = result.available;
     console.log('Biometric available:', biometricAvailable, 'Type:', result.type);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// CLOSE DROPDOWN ON OUTSIDE CLICK
-// ═══════════════════════════════════════════════════════════════
 document.addEventListener('click', function (event) {
     const dropdown = document.getElementById('walletDropdown');
     const btn = document.querySelector('.wallet-selector-btn');
@@ -3266,6 +3953,9 @@ async function switchWallet(index) {
             status(t('switchSuccess'), 'success');
             showNotification('success', t('switchSuccess'), shortAddr(wallet.address));
             
+            loadTxHistoryFromCache();
+            renderTxHistory();
+            loadFavorites();
             refreshAll();
             return;
         }
@@ -3319,9 +4009,6 @@ function addWalletToStorage(address, encryptedSeed) {
     return true;
 }
 
-// ═══════════════════════════════════════════════════════════════
-// COPY ADDRESS
-// ═══════════════════════════════════════════════════════════════
 async function copyAddress() {
     if (state.address) {
         const ok = await copyToClipboard(state.address);
@@ -3330,16 +4017,12 @@ async function copyAddress() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LOAD ALL NFTS
+// 🆕 LOAD ALL NFTS (بدون تغییر status بالا)
 // ═══════════════════════════════════════════════════════════════
 async function loadAllNFTs() {
-    if (!state.address) { 
-        status(t('notConnected'), 'error'); 
-        return; 
-    }
+    if (!state.address) return;
     
     try {
-        status(t('loadingNFTs'), 'info');
         let allNFTs = [];
         
         for (const contractInfo of CONFIG.nftContracts) {
@@ -3351,7 +4034,13 @@ async function loadAllNFTs() {
             
             for (let id = 1; id <= CONFIG.nftIdsToCheck; id++) {
                 try {
-                    const balance = await contract.balanceOf(state.address, id);
+                    const balance = await Promise.race([
+                        contract.balanceOf(state.address, id),
+                        new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Timeout')), 3000)
+                        )
+                    ]);
+                    
                     if (balance.gt(0)) {
                         allNFTs.push({
                             id: id,
@@ -3368,15 +4057,30 @@ async function loadAllNFTs() {
         
         state.allNFTs = allNFTs;
         renderNFTs(allNFTs);
-        status(t('nftsUpdated'), 'success');
+        
+        console.log(`✅ Loaded ${allNFTs.length} NFTs`);
     } catch (e) {
         console.error('Load NFTs error:', e);
-        status('❌ ' + e.message, 'error');
     }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// 🆕 RENDER NFTS (با badge تعداد)
+// ═══════════════════════════════════════════════════════════════
 function renderNFTs(items) {
     const container = document.getElementById('nftList');
+    const badge = document.getElementById('nftCountBadge');
+    
+    // بروزرسانی badge تعداد NFT
+    if (badge) {
+        if (items.length > 0) {
+            badge.textContent = items.length;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
     if (!container) return;
     
     if (items.length === 0) {
@@ -3528,12 +4232,7 @@ function renderTxHistory() {
     const container = document.getElementById('txHistory');
     if (!container) return;
     
-    if (!state.address) {
-        container.innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
-        return;
-    }
-    
-    if (state.txHistory.length === 0) {
+    if (!state.address || state.txHistory.length === 0) {
         container.innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
         return;
     }
@@ -3577,6 +4276,11 @@ function renderTxItem(tx, index) {
         
         const nftInfo = tx.nftName || `NFT #${tx.tokenId}`;
         amountHtml = `<div class="tx-sub">${nftInfo} × ${tx.amount || 1}</div>`;
+        
+    } else if (tx.type === 'swap') {
+        iconHtml = '🔄';
+        titleHtml = t('typeSwap');
+        amountHtml = `<div class="tx-sub">${formatAmount(tx.fromAmount)} ${tx.fromSymbol} → ${formatAmount(tx.toAmount)} ${tx.toSymbol}</div>`;
     }
     
     const dateStr = formatTime(tx.timestamp);
@@ -3659,11 +4363,6 @@ function openTxDetail(index) {
             </div>
             ` : ''}
             
-            <div class="detail-row">
-                <span class="detail-label">${t('detailTime')}</span>
-                <span class="detail-value white">${formatTime(tx.timestamp)}</span>
-            </div>
-            
             <div class="hash-row">
                 <span class="hash-label">${t('detailHash')}</span>
                 <span class="hash-value" onclick="copyTxHash('${tx.hash}')">${tx.hash.slice(0, 12)}...${tx.hash.slice(-8)}</span>
@@ -3706,18 +4405,6 @@ function openTxDetail(index) {
             </div>
             ` : ''}
             
-            ${tx.gasFee ? `
-            <div class="detail-row">
-                <span class="detail-label">${t('detailGas')}</span>
-                <span class="detail-value gold">${tx.gasFee} AVAX</span>
-            </div>
-            ` : ''}
-            
-            <div class="detail-row">
-                <span class="detail-label">${t('detailTime')}</span>
-                <span class="detail-value white">${formatTime(tx.timestamp)}</span>
-            </div>
-            
             ${tx.hash ? `
             <div class="hash-row">
                 <span class="hash-label">${t('detailHash')}</span>
@@ -3725,6 +4412,36 @@ function openTxDetail(index) {
                 <button class="hash-copy-btn" onclick="copyTxHash('${tx.hash}')">📋</button>
             </div>
             ` : ''}
+        `;
+        
+    } else if (tx.type === 'swap') {
+        contentHtml = `
+            <div class="success-icon" style="background: linear-gradient(135deg, var(--accent-primary), #d63652);">
+                🔄
+            </div>
+            <div class="success-title" style="color: var(--accent-primary);">
+                ${t('typeSwap')}
+            </div>
+            <div class="success-sub">${formatTime(tx.timestamp)}</div>
+            
+            <div class="detail-row">
+                <span class="detail-label">💰 از:</span>
+                <span class="detail-value red">-${formatAmount(tx.fromAmount)} ${tx.fromSymbol}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📥 به:</span>
+                <span class="detail-value green">+${formatAmount(tx.toAmount)} ${tx.toSymbol}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⛽ کارمزد:</span>
+                <span class="detail-value gold">${tx.gasFee || '0'} AVAX</span>
+            </div>
+            
+            <div class="hash-row">
+                <span class="hash-label">${t('detailHash')}</span>
+                <span class="hash-value" onclick="copyTxHash('${tx.hash}')">${tx.hash.slice(0, 12)}...${tx.hash.slice(-8)}</span>
+                <button class="hash-copy-btn" onclick="copyTxHash('${tx.hash}')">📋</button>
+            </div>
         `;
     }
     
@@ -3739,6 +4456,716 @@ function closeTxDetailModal() {
 async function copyTxHash(hash) {
     const ok = await copyToClipboard(hash);
     if (ok) toast(t('hashCopied'));
+}
+// ═══════════════════════════════════════════════════════════════
+// 📱 QR CODE - نمایش آدرس (با qrcodejs)
+// ═══════════════════════════════════════════════════════════════
+function showQRCode() {
+    if (!state.address) {
+        showNotification('error', '❌', t('notConnected'));
+        return;
+    }
+    
+    const modal = document.getElementById('qrModal');
+    const addressText = document.getElementById('qrAddressText');
+    const qrContainer = document.getElementById('qrContainer');
+    
+    if (!modal || !qrContainer) return;
+    
+    modal.classList.remove('closed');
+    addressText.textContent = state.address;
+    qrContainer.innerHTML = '';
+    
+    if (typeof QRCode === 'undefined') {
+        console.error('QRCode library not loaded');
+        qrContainer.innerHTML = `
+            <div style="color: #e94560; padding: 20px; text-align: center; font-size: 0.85rem; line-height: 1.6;">
+                ❌ کتابخونه QR لود نشد<br>
+                <small style="opacity: 0.7;">اینترنت خود را چک کنید یا VPN روشن کنید</small>
+            </div>
+        `;
+        return;
+    }
+    
+    try {
+        new QRCode(qrContainer, {
+            text: state.address,
+            width: 240,
+            height: 240,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.M
+        });
+        console.log('✅ QR Generated');
+    } catch (e) {
+        console.error('QR generation error:', e);
+        qrContainer.innerHTML = `
+            <div style="color: #e94560; padding: 20px; text-align: center; font-size: 0.85rem;">
+                ❌ خطا در تولید QR<br>
+                <small>${e.message}</small>
+            </div>
+        `;
+    }
+}
+
+function closeQRModal() {
+    const modal = document.getElementById('qrModal');
+    if (modal) modal.classList.add('closed');
+}
+
+async function copyQrAddress() {
+    if (state.address) {
+        const ok = await copyToClipboard(state.address);
+        if (ok) toast(t('copied'));
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 📷 QR SCANNER - پیام خطا (چون در file:// کار نمیکنه)
+// ═══════════════════════════════════════════════════════════════
+function startQRScanner(target) {
+    showNotification('error', '❌', 
+        currentLang === 'fa' 
+            ? 'اسکنر فقط در HTTPS یا APK کار میکند. برای تست از localhost استفاده کنید.'
+            : 'Scanner works only in HTTPS or APK. Use localhost for testing.'
+    );
+}
+
+function handleScanSuccess(decodedText) {
+    let address = decodedText.trim();
+    if (address.startsWith('ethereum:')) {
+        address = address.substring(9);
+    }
+    if (address.includes('?')) {
+        address = address.split('?')[0];
+    }
+    
+    if (!ethers.utils.isAddress(address)) {
+        toast(t('scanInvalid'), 'error');
+        return;
+    }
+    
+    if (state.scanTarget === 'send-token') {
+        document.getElementById('tokenSendTo').value = address;
+        toast(t('scanSuccess'));
+    } else if (state.scanTarget === 'send-nft') {
+        document.getElementById('nftSendTo').value = address;
+        toast(t('scanSuccess'));
+    } else if (state.scanTarget === 'favorite') {
+        document.getElementById('favAddressInput').value = address;
+        toast(t('scanSuccess'));
+    }
+    
+    closeScanner();
+}
+
+function closeScanner() {
+    const modal = document.getElementById('scanModal');
+    if (modal) modal.classList.add('closed');
+    state.scanTarget = null;
+}
+
+function openScannerForSend() {
+    startQRScanner('send-token');
+}
+
+function openScannerForNFT() {
+    startQRScanner('send-nft');
+}
+
+function scanQRForFavorite() {
+    startQRScanner('favorite');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ⭐ FAVORITES
+// ═══════════════════════════════════════════════════════════════
+function getFavoritesKey() {
+    return 'foxFavorites_' + (state.address || 'unknown').toLowerCase();
+}
+
+function loadFavorites() {
+    try {
+        const key = getFavoritesKey();
+        const data = localStorage.getItem(key);
+        state.favorites = data ? JSON.parse(data) : [];
+    } catch (e) {
+        state.favorites = [];
+    }
+}
+
+function saveFavorites() {
+    try {
+        const key = getFavoritesKey();
+        localStorage.setItem(key, JSON.stringify(state.favorites));
+    } catch (e) {}
+}
+
+// 🆕 حالت عادی: مدیریت (کپی و حذف)
+function updateFavoritesList() {
+    const container = document.getElementById('favoritesList');
+    if (!container) return;
+    
+    // برگرداندن عنوان و دکمه‌ها به حالت مدیریت
+    const modal = document.getElementById('favoritesModal');
+    const titleEl = document.getElementById('favoritesModalTitle');
+    const descEl = document.getElementById('favoritesModalDesc');
+    const addBtn = document.getElementById('addFavBtn');
+    
+    if (titleEl) titleEl.textContent = t('favoritesTitle');
+    if (descEl) descEl.textContent = t('favoritesManageDesc');
+    if (addBtn) addBtn.style.display = 'block';
+    
+    if (!state.favorites || state.favorites.length === 0) {
+        container.innerHTML = `<div class="empty-state">${t('noFavorites')}</div>`;
+        return;
+    }
+    
+    let html = '';
+    state.favorites.forEach((fav, index) => {
+        const safeName = (fav.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeAddr = fav.address.replace(/'/g, "\\'");
+        
+        html += `
+            <div class="favorite-item">
+                <div class="fav-info">
+                    <div class="fav-name">${fav.name}</div>
+                    <div class="fav-address" title="${fav.address}">${fav.address}</div>
+                </div>
+                <div class="fav-actions">
+                    <button class="fav-action-btn" onclick="copyFavoriteAddress('${safeAddr}')" title="کپی">📋</button>
+                    <button class="fav-action-btn delete" onclick="deleteFavorite(${index})" title="حذف">🗑️</button>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function showFavorites() {
+    loadFavorites();
+    state.favoritesForTarget = null;
+    updateFavoritesList();
+    document.getElementById('favoritesModal').classList.remove('closed');
+}
+
+function closeFavorites() {
+    const modal = document.getElementById('favoritesModal');
+    if (modal) modal.classList.add('closed');
+    
+    // برگرداندن حالت مدیریت
+    const titleEl = document.getElementById('favoritesModalTitle');
+    const descEl = document.getElementById('favoritesModalDesc');
+    const addBtn = document.getElementById('addFavBtn');
+    
+    if (titleEl) titleEl.textContent = t('favoritesTitle');
+    if (descEl) descEl.textContent = t('favoritesManageDesc');
+    if (addBtn) addBtn.style.display = 'block';
+    
+    state.favoritesForTarget = null;
+}
+
+function showAddFavoriteModal() {
+    document.getElementById('favNameInput').value = '';
+    document.getElementById('favAddressInput').value = '';
+    document.getElementById('addFavoriteModal').classList.remove('closed');
+}
+
+function closeAddFavorite() {
+    document.getElementById('addFavoriteModal').classList.add('closed');
+}
+
+function saveFavorite() {
+    const name = document.getElementById('favNameInput').value.trim();
+    const address = document.getElementById('favAddressInput').value.trim();
+    
+    if (!name) {
+        toast(t('favoriteNameRequired'), 'error');
+        return;
+    }
+    
+    if (!address || !ethers.utils.isAddress(address)) {
+        toast(t('favoriteInvalidAddress'), 'error');
+        return;
+    }
+    
+    const exists = state.favorites.some(f => f.address.toLowerCase() === address.toLowerCase());
+    if (exists) {
+        toast('❌ این آدرس قبلاً ذخیره شده', 'error');
+        return;
+    }
+    
+    state.favorites.push({
+        name: name,
+        address: address,
+        addedAt: Date.now()
+    });
+    
+    saveFavorites();
+    updateFavoritesList();
+    
+    closeAddFavorite();
+    toast(t('favoriteAdded'));
+    showNotification('success', '⭐', t('favoriteAdded'));
+}
+
+function deleteFavorite(index) {
+    if (!confirm('حذف این آدرس؟')) return;
+    
+    state.favorites.splice(index, 1);
+    saveFavorites();
+    updateFavoritesList();
+    toast(t('favoriteDeleted'));
+}
+
+async function copyFavoriteAddress(address) {
+    const ok = await copyToClipboard(address);
+    if (ok) toast(t('copied'));
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🆕 FAVORITES PICKER (حالت انتخاب برای ارسال)
+// ═══════════════════════════════════════════════════════════════
+function openFavoritesForSend() {
+    state.favoritesForTarget = 'send-token';
+    loadFavorites();
+    
+    if (state.favorites.length === 0) {
+        showNotification('info', '⭐', t('noFavorites'));
+        return;
+    }
+    
+    showFavoritesPicker();
+}
+
+function openFavoritesForNFT() {
+    state.favoritesForTarget = 'send-nft';
+    loadFavorites();
+    
+    if (state.favorites.length === 0) {
+        showNotification('info', '⭐', t('noFavorites'));
+        return;
+    }
+    
+    showFavoritesPicker();
+}
+
+// 🆕 حالت انتخاب: فقط آیتم‌ها کلیک‌پذیر (بدون دکمه کپی/حذف)
+function showFavoritesPicker() {
+    const container = document.getElementById('favoritesList');
+    const modal = document.getElementById('favoritesModal');
+    const titleEl = document.getElementById('favoritesModalTitle');
+    const descEl = document.getElementById('favoritesModalDesc');
+    const addBtn = document.getElementById('addFavBtn');
+    
+    if (!container || !modal) return;
+    
+    // تغییر عنوان به حالت انتخاب
+    if (titleEl) titleEl.textContent = t('favoritesPickerTitle');
+    if (descEl) descEl.textContent = t('favoritesPickerDesc');
+    if (addBtn) addBtn.style.display = 'none';
+    
+    let html = '';
+    state.favorites.forEach((fav) => {
+        const safeName = (fav.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeAddr = fav.address.replace(/'/g, "\\'");
+        
+        html += `
+            <div class="favorite-item" onclick="pickFavorite('${safeAddr}')" style="cursor:pointer;">
+                <div class="fav-info">
+                    <div class="fav-name">${fav.name}</div>
+                    <div class="fav-address">${fav.address}</div>
+                </div>
+                <div class="fav-actions">
+                    <span style="color:var(--accent-success);font-size:1.2rem;">→</span>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    modal.classList.remove('closed');
+}
+
+function pickFavorite(address) {
+    if (state.favoritesForTarget === 'send-token') {
+        document.getElementById('tokenSendTo').value = address;
+        toast('✅ انتخاب شد');
+    } else if (state.favoritesForTarget === 'send-nft') {
+        document.getElementById('nftSendTo').value = address;
+        toast('✅ انتخاب شد');
+    }
+    
+    closeFavorites();
+}
+// ═══════════════════════════════════════════════════════════════
+// 🔄 SWAP - Pangolin DEX
+// ═══════════════════════════════════════════════════════════════
+function showSwapModal() {
+    if (!state.signer) {
+        showNotification('error', '❌', t('openWalletFirst'));
+        return;
+    }
+    
+    state.swapFromToken = 'AVAX';
+    state.swapToToken = 'USDC';
+    state.swapFromAmount = 0;
+    state.swapToAmount = 0;
+    state.swapAmountOutWei = null;
+    
+    document.getElementById('swapFromAmount').value = '';
+    document.getElementById('swapToAmount').value = '';
+    document.getElementById('swapFromSymbol').textContent = 'AVAX';
+    document.getElementById('swapToSymbol').textContent = 'USDC';
+    
+    updateSwapBalanceInfo();
+    
+    document.getElementById('swapModal').classList.remove('closed');
+}
+
+function closeSwapModal() {
+    document.getElementById('swapModal').classList.add('closed');
+}
+
+function swapDirection() {
+    const tmp = state.swapFromToken;
+    state.swapFromToken = state.swapToToken;
+    state.swapToToken = tmp;
+    
+    document.getElementById('swapFromAmount').value = '';
+    document.getElementById('swapToAmount').value = '';
+    document.getElementById('swapFromSymbol').textContent = state.swapFromToken;
+    document.getElementById('swapToSymbol').textContent = state.swapToToken;
+    
+    updateSwapBalanceInfo();
+}
+
+async function updateSwapBalanceInfo() {
+    if (!state.provider || !state.address) return;
+    
+    const fromBalEl = document.getElementById('swapFromBalance');
+    const toBalEl = document.getElementById('swapToBalance');
+    const fromToken = CONFIG.pangolin.tokens[state.swapFromToken];
+    const toToken = CONFIG.pangolin.tokens[state.swapToToken];
+    
+    try {
+        let fromBal = '0';
+        let toBal = '0';
+        
+        if (fromToken.isNative) {
+            const bal = await state.provider.getBalance(state.address);
+            fromBal = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
+        } else {
+            const contract = new ethers.Contract(
+                fromToken.address,
+                ['function balanceOf(address) view returns (uint)'],
+                state.provider
+            );
+            const bal = await contract.balanceOf(state.address);
+            fromBal = parseFloat(ethers.utils.formatUnits(bal, fromToken.decimals)).toFixed(4);
+        }
+        
+        if (toToken.isNative) {
+            const bal = await state.provider.getBalance(state.address);
+            toBal = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
+        } else {
+            const contract = new ethers.Contract(
+                toToken.address,
+                ['function balanceOf(address) view returns (uint)'],
+                state.provider
+            );
+            const bal = await contract.balanceOf(state.address);
+            toBal = parseFloat(ethers.utils.formatUnits(bal, toToken.decimals)).toFixed(4);
+        }
+        
+        fromBalEl.textContent = `موجودی: ${fromBal} ${state.swapFromToken}`;
+        toBalEl.textContent = `موجودی: ${toBal} ${state.swapToToken}`;
+        
+        state.swapFromBalance = fromBal;
+        
+    } catch (e) {
+        console.error('Balance error:', e);
+        fromBalEl.textContent = 'موجودی: -';
+        toBalEl.textContent = 'موجودی: -';
+    }
+}
+
+function setSwapFromMax() {
+    if (state.swapFromBalance) {
+        const fromToken = CONFIG.pangolin.tokens[state.swapFromToken];
+        let maxVal = parseFloat(state.swapFromBalance);
+        if (fromToken.isNative && maxVal > 0.01) {
+            maxVal = maxVal - 0.01;
+        }
+        document.getElementById('swapFromAmount').value = maxVal.toFixed(6);
+        updateSwapRate();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// محاسبه نرخ تبدیل
+// ═══════════════════════════════════════════════════════════════
+let swapRateTimeout = null;
+
+async function updateSwapRate() {
+    const fromAmount = parseFloat(document.getElementById('swapFromAmount').value) || 0;
+    const rateEl = document.getElementById('swapRateInfo');
+    const feeEl = document.getElementById('swapFeeInfo');
+    const toAmountEl = document.getElementById('swapToAmount');
+    
+    if (fromAmount <= 0) {
+        rateEl.textContent = '-';
+        feeEl.textContent = '-';
+        toAmountEl.value = '';
+        return;
+    }
+    
+    if (swapRateTimeout) clearTimeout(swapRateTimeout);
+    
+    swapRateTimeout = setTimeout(async () => {
+        try {
+            const fromToken = CONFIG.pangolin.tokens[state.swapFromToken];
+            const toToken = CONFIG.pangolin.tokens[state.swapToToken];
+            
+            if (fromToken.address.toLowerCase() === toToken.address.toLowerCase()) {
+                rateEl.textContent = 'Same token';
+                toAmountEl.value = fromAmount.toFixed(6);
+                return;
+            }
+            
+            const router = new ethers.Contract(
+                CONFIG.pangolin.routerAddress,
+                CONFIG.pangolin.routerABI,
+                state.provider
+            );
+            
+            const amountIn = ethers.utils.parseUnits(
+                fromAmount.toString(),
+                fromToken.decimals
+            );
+            
+            const path = [fromToken.address, toToken.address];
+            
+            const amounts = await router.getAmountsOut(amountIn, path);
+            const amountOut = amounts[1];
+            
+            const amountOutFormatted = parseFloat(
+                ethers.utils.formatUnits(amountOut, toToken.decimals)
+            );
+            
+            state.swapFromAmount = fromAmount;
+            state.swapToAmount = amountOutFormatted;
+            state.swapAmountOutWei = amountOut;
+            
+            toAmountEl.value = amountOutFormatted.toFixed(6);
+            
+            const rate = amountOutFormatted / fromAmount;
+            rateEl.textContent = `1 ${state.swapFromToken} ≈ ${rate.toFixed(6)} ${state.swapToToken}`;
+            
+            feeEl.textContent = '~0.3% (Pangolin)';
+            
+        } catch (e) {
+            console.error('Rate error:', e);
+            rateEl.textContent = '❌ خطا در محاسبه';
+            toAmountEl.value = '';
+        }
+    }, 500);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🆕 شروع Swap (با تأیید رمز/اثر انگشت از طریق Confirm Modal)
+// ═══════════════════════════════════════════════════════════════
+function startSwap() {
+    if (!state.signer) {
+        showNotification('error', '❌', t('openWalletFirst'));
+        return;
+    }
+    
+    const fromAmount = parseFloat(document.getElementById('swapFromAmount').value) || 0;
+    
+    if (fromAmount <= 0) {
+        showNotification('error', '❌', t('invalidAmount'));
+        return;
+    }
+    
+    if (state.swapFromToken === state.swapToToken) {
+        showNotification('error', '❌', 'توکن‌ها یکسان هستند');
+        return;
+    }
+    
+    if (!state.swapToAmount || state.swapToAmount <= 0) {
+        showNotification('error', '❌', 'نرخ تبدیل آماده نیست');
+        return;
+    }
+    
+    const fromToken = CONFIG.pangolin.tokens[state.swapFromToken];
+    const toToken = CONFIG.pangolin.tokens[state.swapToToken];
+    
+    // ذخیره pending
+    state.pendingTx = {
+        type: 'swap',
+        fromToken: state.swapFromToken,
+        toToken: state.swapToToken,
+        fromAmount: fromAmount,
+        toAmount: state.swapToAmount,
+        fromTokenInfo: fromToken,
+        toTokenInfo: toToken,
+        amountOutWei: state.swapAmountOutWei
+    };
+    
+    // بستن swap modal و باز کردن confirm modal
+    closeSwapModal();
+    showConfirmModal();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// اجرای Swap
+// ═══════════════════════════════════════════════════════════════
+async function executeSwap(tx) {
+    try {
+        status(t('swapping'), 'info');
+        
+        const fromToken = tx.fromTokenInfo;
+        const toToken = tx.toTokenInfo;
+        const router = new ethers.Contract(
+            CONFIG.pangolin.routerAddress,
+            CONFIG.pangolin.routerABI,
+            state.signer
+        );
+        
+        const amountIn = ethers.utils.parseUnits(
+            tx.fromAmount.toString(),
+            fromToken.decimals
+        );
+        
+        const slippage = CONFIG.pangolin.slippage / 100;
+        const amountOutMin = tx.amountOutWei.mul(
+            Math.floor((1 - slippage) * 10000)
+        ).div(10000);
+        
+        const path = [fromToken.address, toToken.address];
+        const deadline = Math.floor(Date.now() / 1000) + (CONFIG.pangolin.deadlineMinutes * 60);
+        
+        let transaction;
+        
+        if (fromToken.isNative) {
+            // AVAX → Token
+            transaction = await router.swapExactAVAXForTokens(
+                amountOutMin,
+                path,
+                state.address,
+                deadline,
+                { value: amountIn }
+            );
+        } else if (toToken.isNative) {
+            // Token → AVAX
+            const tokenContract = new ethers.Contract(
+                fromToken.address,
+                ['function approve(address, uint) returns (bool)',
+                 'function allowance(address, address) view returns (uint)'],
+                state.signer
+            );
+            
+            const allowance = await tokenContract.allowance(state.address, CONFIG.pangolin.routerAddress);
+            
+            if (allowance.lt(amountIn)) {
+                status('⏳ در حال تأیید توکن...', 'info');
+                const approveTx = await tokenContract.approve(
+                    CONFIG.pangolin.routerAddress,
+                    ethers.constants.MaxUint256
+                );
+                await approveTx.wait();
+            }
+            
+            transaction = await router.swapExactTokensForAVAX(
+                amountIn,
+                amountOutMin,
+                path,
+                state.address,
+                deadline
+            );
+        } else {
+            // Token → Token
+            const tokenContract = new ethers.Contract(
+                fromToken.address,
+                ['function approve(address, uint) returns (bool)',
+                 'function allowance(address, address) view returns (uint)'],
+                state.signer
+            );
+            
+            const allowance = await tokenContract.allowance(state.address, CONFIG.pangolin.routerAddress);
+            
+            if (allowance.lt(amountIn)) {
+                status('⏳ در حال تأیید توکن...', 'info');
+                const approveTx = await tokenContract.approve(
+                    CONFIG.pangolin.routerAddress,
+                    ethers.constants.MaxUint256
+                );
+                await approveTx.wait();
+            }
+            
+            transaction = await router.swapExactTokensForTokens(
+                amountIn,
+                amountOutMin,
+                path,
+                state.address,
+                deadline
+            );
+        }
+        
+        status(t('waitingNetwork'), 'info');
+        const receipt = await transaction.wait();
+        
+        const gasUsed = receipt.gasUsed;
+        const effectiveGasPrice = receipt.effectiveGasPrice || transaction.gasPrice || ethers.BigNumber.from(0);
+        const gasFeeWei = gasUsed.mul(effectiveGasPrice);
+        const gasFeeAvax = parseFloat(ethers.utils.formatEther(gasFeeWei)).toFixed(6);
+        
+        const txRecord = {
+            hash: receipt.transactionHash,
+            type: 'swap',
+            direction: 'out',
+            from: state.address,
+            to: state.address,
+            fromSymbol: tx.fromToken,
+            toSymbol: tx.toToken,
+            fromAmount: tx.fromAmount,
+            toAmount: tx.toAmount,
+            gasFee: gasFeeAvax,
+            timestamp: Date.now(),
+            blockNumber: receipt.blockNumber
+        };
+        
+        addTxToHistory(txRecord);
+        renderTxHistory();
+        showSuccessModal(txRecord);
+        
+        const notifTitle = currentLang === 'fa' ? '✅ Swap موفق' : '✅ Swap Done';
+        const notifBody = `${formatAmount(tx.fromAmount)} ${tx.fromToken} → ${formatAmount(tx.toAmount)} ${tx.toToken}`;
+        await NativeNotifications.send(notifTitle, notifBody, 'success');
+        
+        state.pendingTx = null;
+        status(t('successSwapTitle'), 'success');
+        
+        await refreshAll();
+        
+        // 🆕 برگرداندن status به "متصل" بعد از ۳ ثانیه
+        setTimeout(restoreConnectedStatus, 3000);
+        
+    } catch (e) {
+        console.error('Swap error:', e);
+        let errMsg = e.message || 'Error';
+        if (e.code === 'ACTION_REJECTED' || errMsg.includes('user rejected')) {
+            errMsg = t('txCancelled');
+        }
+        showNotification('error', '❌ ' + t('swapError'), errMsg);
+        status(t('swapError'), 'error');
+        state.pendingTx = null;
+        
+        // 🆕 برگرداندن status به "متصل" بعد از ۳ ثانیه
+        setTimeout(restoreConnectedStatus, 3000);
+    }
 }
 // ═══════════════════════════════════════════════════════════════
 // SEND MODAL
@@ -3836,7 +5263,7 @@ function selectNFTForSend(contract, id, name, image, collection, balance) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// START SEND TOKEN
+// START SEND
 // ═══════════════════════════════════════════════════════════════
 function startSendToken() {
     if (!state.signer) {
@@ -3885,9 +5312,6 @@ function startSendToken() {
     showConfirmModal();
 }
 
-// ═══════════════════════════════════════════════════════════════
-// START SEND NFT
-// ═══════════════════════════════════════════════════════════════
 function startSendNFT() {
     if (!state.signer) {
         showNotification('error', '❌', t('openWalletFirst'));
@@ -3932,16 +5356,25 @@ function startSendNFT() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// CONFIRM MODAL
+// CONFIRM MODAL (برای ارسال و Swap)
 // ═══════════════════════════════════════════════════════════════
 function showConfirmModal() {
     const tx = state.pendingTx;
     if (!tx) return;
     
     const detailsEl = document.getElementById('confirmDetails');
+    const titleEl = document.getElementById('confirmTitleText');
+    const subEl = document.getElementById('confirmSubText');
+    const passBtn = document.getElementById('confirmPasswordBtn');
+    const iconEl = document.getElementById('confirmIcon');
+    
     let detailsHtml = '';
     
     if (tx.type === 'avax') {
+        titleEl.textContent = t('confirmTitle');
+        subEl.textContent = t('confirmSub');
+        passBtn.textContent = t('confirmPassBtn');
+        iconEl.textContent = '⚠️';
         detailsHtml = `
             <div class="detail-row">
                 <span class="detail-label">💰 مقدار:</span>
@@ -3953,6 +5386,10 @@ function showConfirmModal() {
             </div>
         `;
     } else if (tx.type === 'nft') {
+        titleEl.textContent = t('confirmTitle');
+        subEl.textContent = t('confirmSub');
+        passBtn.textContent = t('confirmPassBtn');
+        iconEl.textContent = '⚠️';
         detailsHtml = `
             <div class="detail-row">
                 <span class="detail-label">NFT:</span>
@@ -3967,24 +5404,36 @@ function showConfirmModal() {
                 <span class="detail-value" title="${tx.to}">${fullAddr(tx.to)}</span>
             </div>
         `;
+    } else if (tx.type === 'swap') {
+        titleEl.textContent = t('confirmSwapTitle');
+        subEl.textContent = t('confirmSwapSub');
+        passBtn.textContent = t('confirmSwapBtn');
+        iconEl.textContent = '🔄';
+        detailsHtml = `
+            <div class="detail-row">
+                <span class="detail-label">💰 از:</span>
+                <span class="detail-value red">-${formatAmount(tx.fromAmount)} ${tx.fromToken}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📥 به:</span>
+                <span class="detail-value green">+${formatAmount(tx.toAmount)} ${tx.toToken}</span>
+            </div>
+        `;
     }
     
     detailsEl.innerHTML = detailsHtml;
     
     const bioEnabled = Settings.getBiometricEnabled() && biometricAvailable;
-    
     const bioBtn = document.getElementById('confirmBiometricBtn');
     const passSection = document.getElementById('confirmPasswordSection');
-    const subText = document.getElementById('confirmSubText');
     
     if (bioEnabled) {
         bioBtn.style.display = 'block';
         passSection.style.display = 'none';
-        subText.textContent = t('confirmSubBio');
+        subEl.textContent = t('confirmSubBio');
     } else {
         bioBtn.style.display = 'none';
         passSection.style.display = 'block';
-        subText.textContent = t('confirmSub');
     }
     
     document.getElementById('confirmPass').value = '';
@@ -4002,7 +5451,8 @@ function closeConfirmModal() {
 async function confirmWithBiometric() {
     if (!state.pendingTx) return;
     
-    const result = await BiometricAuth.verify(t('bioTxPrompt'));
+    const prompt = state.pendingTx.type === 'swap' ? t('bioSwapPrompt') : t('bioTxPrompt');
+    const result = await BiometricAuth.verify(prompt);
     if (!result.success) {
         showNotification('error', '❌', t('bioFailed'));
         return;
@@ -4011,11 +5461,7 @@ async function confirmWithBiometric() {
     const tx = state.pendingTx;
     document.getElementById('confirmTxModal').classList.add('closed');
     
-    if (tx.type === 'avax') {
-        await executeSendToken(tx);
-    } else {
-        await executeSendNFT(tx);
-    }
+    await executeTxByType(tx);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4044,10 +5490,16 @@ async function confirmWithPassword() {
     const tx = state.pendingTx;
     document.getElementById('confirmTxModal').classList.add('closed');
     
+    await executeTxByType(tx);
+}
+
+async function executeTxByType(tx) {
     if (tx.type === 'avax') {
         await executeSendToken(tx);
-    } else {
+    } else if (tx.type === 'nft') {
         await executeSendNFT(tx);
+    } else if (tx.type === 'swap') {
+        await executeSwap(tx);
     }
 }
 
@@ -4066,7 +5518,6 @@ async function executeSendToken(tx) {
         });
         
         status(t('waitingNetwork'), 'info');
-        
         const receipt = await transaction.wait();
         
         const gasUsed = receipt.gasUsed;
@@ -4105,6 +5556,9 @@ async function executeSendToken(tx) {
         
         await refreshAll();
         
+        // 🆕 برگرداندن status به "متصل" بعد از ۳ ثانیه
+        setTimeout(restoreConnectedStatus, 3000);
+        
     } catch (e) {
         console.error('Send token error:', e);
         let errMsg = e.message || 'Error';
@@ -4114,6 +5568,8 @@ async function executeSendToken(tx) {
         showNotification('error', '❌ ' + t('sendingError'), errMsg);
         status(t('sendingError'), 'error');
         state.pendingTx = null;
+        
+        setTimeout(restoreConnectedStatus, 3000);
     }
 }
 
@@ -4135,7 +5591,6 @@ async function executeSendNFT(tx) {
         );
         
         status(t('waitingNetwork'), 'info');
-        
         const receipt = await transaction.wait();
         
         const gasUsed = receipt.gasUsed;
@@ -4180,6 +5635,8 @@ async function executeSendNFT(tx) {
         
         await refreshAll();
         
+        setTimeout(restoreConnectedStatus, 3000);
+        
     } catch (e) {
         console.error('Send NFT error:', e);
         let errMsg = e.message || 'Error';
@@ -4189,6 +5646,8 @@ async function executeSendNFT(tx) {
         showNotification('error', '❌ ' + t('sendingError'), errMsg);
         status(t('sendingError'), 'error');
         state.pendingTx = null;
+        
+        setTimeout(restoreConnectedStatus, 3000);
     }
 }
 
@@ -4197,9 +5656,13 @@ async function executeSendNFT(tx) {
 // ═══════════════════════════════════════════════════════════════
 function showSuccessModal(tx) {
     const content = document.getElementById('successContent');
+    const titleEl = document.getElementById('successTitleText');
+    const subEl = document.getElementById('successSubText');
     let html = '';
     
     if (tx.type === 'avax') {
+        titleEl.textContent = t('successTitle');
+        subEl.textContent = t('successSub');
         html = `
             <div class="detail-row">
                 <span class="detail-label">💰 مقدار:</span>
@@ -4224,6 +5687,8 @@ function showSuccessModal(tx) {
             </div>
         `;
     } else if (tx.type === 'nft') {
+        titleEl.textContent = t('successTitle');
+        subEl.textContent = t('successSub');
         let imageHtml = tx.image
             ? `<img src="${tx.image}" class="detail-nft-image" onerror="this.outerHTML='&lt;div class=\\'detail-nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
             : `<div class="detail-nft-image placeholder">🎨</div>`;
@@ -4249,9 +5714,27 @@ function showSuccessModal(tx) {
                 <span class="detail-label">⛽ کارمزد:</span>
                 <span class="detail-value gold">${tx.gasFee} AVAX</span>
             </div>
+            <div class="hash-row">
+                <span class="hash-label">🔗 هش:</span>
+                <span class="hash-value" onclick="copyTxHash('${tx.hash}')">${tx.hash.slice(0, 12)}...${tx.hash.slice(-8)}</span>
+                <button class="hash-copy-btn" onclick="copyTxHash('${tx.hash}')">📋</button>
+            </div>
+        `;
+    } else if (tx.type === 'swap') {
+        titleEl.textContent = t('successSwapTitle');
+        subEl.textContent = t('successSwapSub');
+        html = `
             <div class="detail-row">
-                <span class="detail-label">🕐 زمان:</span>
-                <span class="detail-value white">${formatTime(tx.timestamp)}</span>
+                <span class="detail-label">💰 از:</span>
+                <span class="detail-value red">-${formatAmount(tx.fromAmount)} ${tx.fromSymbol}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">📥 به:</span>
+                <span class="detail-value green">+${formatAmount(tx.toAmount)} ${tx.toSymbol}</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">⛽ کارمزد:</span>
+                <span class="detail-value gold">${tx.gasFee} AVAX</span>
             </div>
             <div class="hash-row">
                 <span class="hash-label">🔗 هش:</span>
@@ -4271,29 +5754,26 @@ function closeSuccessModal() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// REFRESH BALANCE
+// REFRESH
 // ═══════════════════════════════════════════════════════════════
 async function refreshBalance() {
     if (!state.address || !state.provider) return;
     try {
         const balance = await state.provider.getBalance(state.address);
         const balanceAvax = parseFloat(ethers.utils.formatEther(balance));
+        state.lastAvaxBalance = balanceAvax;
+        
         document.getElementById('avaxBalance').textContent = balanceAvax.toFixed(4);
         updateTokenBalanceInfo();
+        updateUSDDisplay();
         return balanceAvax;
     } catch (e) {
         console.error('Balance error:', e);
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// REFRESH ALL
-// ═══════════════════════════════════════════════════════════════
 async function refreshAll() {
-    if (!state.address) { 
-        status(t('notConnected'), 'error'); 
-        return; 
-    }
+    if (!state.address) return;
     
     try {
         await refreshBalance();
@@ -4302,235 +5782,6 @@ async function refreshAll() {
         console.error('Refresh error:', e);
     }
 }
-
-// ═══════════════════════════════════════════════════════════════
-// AVA CLOUD API - AVAX Transactions
-// ═══════════════════════════════════════════════════════════════
-async function fetchAVAXTransactions(address) {
-    try {
-        const url = `${CONFIG.avaCloud.baseUrl}/v1/chains/${CONFIG.avaCloud.chainId}/addresses/${address}/transactions?pageSize=${CONFIG.avaCloud.pageSize}`;
-        
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
-        
-        if (!response.ok) {
-            console.log('AvaCloud AVAX error:', response.status);
-            return [];
-        }
-        
-        const data = await response.json();
-        return data.transactions || [];
-    } catch (e) {
-        console.error('AvaCloud AVAX fetch:', e);
-        return [];
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// AVA CLOUD API - NFT Transactions
-// ═══════════════════════════════════════════════════════════════
-async function fetchNFTTransactions(address) {
-    try {
-        const url = `${CONFIG.avaCloud.baseUrl}/v1/chains/${CONFIG.avaCloud.chainId}/addresses/${address}/nft-transactions?pageSize=${CONFIG.avaCloud.pageSize}`;
-        
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
-        
-        if (!response.ok) {
-            console.log('AvaCloud NFT error:', response.status);
-            return [];
-        }
-        
-        const data = await response.json();
-        return data.transactions || [];
-    } catch (e) {
-        console.error('AvaCloud NFT fetch:', e);
-        return [];
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// SNOWSCAN API - دریافت تاریخچه AVAX (پشتیبان)
-// ═══════════════════════════════════════════════════════════════
-async function fetchSnowScanAVAXTransactions(address) {
-    try {
-        const url = `${CONFIG.snowScan.baseUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${CONFIG.snowScan.apiKey}`;
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            console.log('SnowScan error:', response.status);
-            return [];
-        }
-        
-        const data = await response.json();
-        if (data.status !== '1' || !Array.isArray(data.result)) {
-            console.log('SnowScan returned no data');
-            return [];
-        }
-        
-        return data.result;
-    } catch (e) {
-        console.error('SnowScan fetch:', e);
-        return [];
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MERGE AVA CLOUD DATA با Local History
-// ═══════════════════════════════════════════════════════════════
-function mergeAvaCloudTransactions(avaxTxs, nftTxs) {
-    if (!state.address) return;
-    
-    const myAddress = state.address.toLowerCase();
-    const existingHashes = new Set(state.txHistory.map(t => t.hash));
-    let newCount = 0;
-    
-    // ─── AVAX Transactions ───
-    for (const avaxTx of avaxTxs) {
-        if (existingHashes.has(avaxTx.txHash)) continue;
-        if (avaxTx.txStatus && avaxTx.txStatus !== 'success') continue;
-        
-        const valueWei = avaxTx.value || '0';
-        if (valueWei === '0') continue;
-        
-        const fromAddr = (avaxTx.from?.address || '').toLowerCase();
-        const toAddr = (avaxTx.to?.address || '').toLowerCase();
-        
-        const isIncoming = toAddr === myAddress && fromAddr !== myAddress;
-        const isOutgoing = fromAddr === myAddress && toAddr !== myAddress;
-        
-        if (!isIncoming && !isOutgoing) continue;
-        
-        const valueAvax = parseFloat(ethers.utils.formatEther(valueWei));
-        
-        let gasFeeAvax = '0';
-        if (avaxTx.gasUsed && avaxTx.gasPrice) {
-            try {
-                const gasUsedBN = ethers.BigNumber.from(avaxTx.gasUsed);
-                const gasPriceBN = ethers.BigNumber.from(avaxTx.gasPrice);
-                const feeWei = gasUsedBN.mul(gasPriceBN);
-                gasFeeAvax = parseFloat(ethers.utils.formatEther(feeWei)).toFixed(6);
-            } catch (e) {}
-        }
-        
-        const txRecord = {
-            hash: avaxTx.txHash,
-            type: 'avax',
-            direction: isIncoming ? 'in' : 'out',
-            from: avaxTx.from?.address || '',
-            to: avaxTx.to?.address || '',
-            value: valueAvax,
-            gasFee: isOutgoing ? gasFeeAvax : null,
-            timestamp: (avaxTx.blockTimestamp || 0) * 1000,
-            blockNumber: avaxTx.blockNumber || 0,
-            fromAvaCloud: true
-        };
-        
-        state.txHistory.push(txRecord);
-        existingHashes.add(avaxTx.txHash);
-        newCount++;
-    }
-    
-    // ─── NFT Transactions ───
-    for (const nftTx of nftTxs) {
-        if (existingHashes.has(nftTx.txHash)) continue;
-        
-        const fromAddr = (nftTx.from?.address || '').toLowerCase();
-        const toAddr = (nftTx.to?.address || '').toLowerCase();
-        
-        const isIncoming = toAddr === myAddress && fromAddr !== myAddress;
-        const isOutgoing = fromAddr === myAddress && toAddr !== myAddress;
-        
-        if (!isIncoming && !isOutgoing) continue;
-        
-        const contractAddr = (nftTx.erc1155TokenMetadata?.address || 
-                              nftTx.erc721TokenMetadata?.address || '').toLowerCase();
-        
-        const isOurContract = CONFIG.nftContracts.some(
-            c => c.address.toLowerCase() === contractAddr
-        );
-        
-        if (!isOurContract) continue;
-        
-        const tokenId = nftTx.erc1155TokenId || nftTx.erc721TokenId || '0';
-        const amount = parseInt(nftTx.erc1155TokenQuantity || '1');
-        const nftName = nftTx.erc1155TokenMetadata?.name || 
-                       nftTx.erc721TokenMetadata?.name || 
-                       `NFT #${tokenId}`;
-        const image = nftTx.erc1155TokenMetadata?.imageUri || 
-                     nftTx.erc721TokenMetadata?.imageUri || null;
-        
-        const contractInfo = CONFIG.nftContracts.find(
-            c => c.address.toLowerCase() === contractAddr
-        );
-        const collection = contractInfo?.name || 'Unknown Collection';
-        const finalImage = image || contractInfo?.image || null;
-        
-        const txRecord = {
-            hash: nftTx.txHash,
-            type: 'nft',
-            direction: isIncoming ? 'in' : 'out',
-            from: nftTx.from?.address || '',
-            to: nftTx.to?.address || '',
-            contract: contractAddr,
-            tokenId: tokenId,
-            amount: amount,
-            nftName: nftName.includes('#') ? nftName : `${collection} #${tokenId}`,
-            image: finalImage,
-            collection: collection,
-            gasFee: null,
-            timestamp: (nftTx.blockTimestamp || 0) * 1000,
-            blockNumber: nftTx.blockNumber || 0,
-            fromAvaCloud: true
-        };
-        
-        state.txHistory.push(txRecord);
-        existingHashes.add(nftTx.txHash);
-        newCount++;
-    }
-    
-    state.txHistory.sort((a, b) => b.timestamp - a.timestamp);
-    if (state.txHistory.length > 100) state.txHistory.length = 100;
-    
-    saveTxToCache();
-    renderTxHistory();
-    
-    console.log(`✅ Merged ${newCount} new transactions`);
-    return newCount;
-}
-
-// ═══════════════════════════════════════════════════════════════
-// LOAD FULL TX HISTORY
-// ═══════════════════════════════════════════════════════════════
-async function loadFullTxHistory() {
-    if (!state.address) return;
-    
-    try {
-        status(t('loadingTxs'), 'info');
-        
-        const [avaxTxs, nftTxs] = await Promise.all([
-            fetchAVAXTransactions(state.address),
-            fetchNFTTransactions(state.address)
-        ]);
-        
-        const newCount = mergeAvaCloudTransactions(avaxTxs, nftTxs);
-        
-        if (newCount > 0) {
-            status(t('txsUpdated'), 'success');
-            showNotification('info', 
-                currentLang === 'fa' ? '📜 تاریخچه بروز شد' : '📜 History updated',
-                currentLang === 'fa' ? `${newCount} تراکنش جدید` : `${newCount} new transactions`
-            );
-        } else {
-            status(t('connected'), 'success');
-        }
-    } catch (e) {
-        console.error('Load full history:', e);
-    }
-}
-
 // ═══════════════════════════════════════════════════════════════
 // SEED MODAL
 // ═══════════════════════════════════════════════════════════════
@@ -4709,6 +5960,9 @@ async function confirmExitWallet() {
         const historyKey = 'foxTxHistory_' + addressToDelete.toLowerCase();
         localStorage.removeItem(historyKey);
         
+        const favoritesKey = 'foxFavorites_' + addressToDelete.toLowerCase();
+        localStorage.removeItem(favoritesKey);
+        
         state.address = null;
         state.encryptedSeed = null;
         state.signer = null;
@@ -4719,6 +5973,8 @@ async function confirmExitWallet() {
         state.allNFTs = [];
         state.selectedNFT = null;
         state.pendingTx = null;
+        state.favorites = [];
+        state.lastAvaxBalance = 0;
         
         await BiometricAuth.deleteCredentials();
         
@@ -4726,27 +5982,31 @@ async function confirmExitWallet() {
         document.getElementById('avaxBalance').textContent = '0';
         document.getElementById('nftList').innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
         document.getElementById('txHistory').innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
+        updateUSDDisplay();
+        
+        // پاک کردن badge
+        const badge = document.getElementById('nftCountBadge');
+        if (badge) badge.style.display = 'none';
         
         updateWalletDropdown();
         closeExitWalletModal();
         
         showNotification('success', '🗑️', t('walletDeletedPermanently'));
         
+        document.getElementById('loginModal').classList.remove('closed');
         if (state.wallets.length > 0) {
-            document.getElementById('loginModal').classList.remove('closed');
             document.getElementById('loginOptions').classList.add('hidden');
             document.getElementById('unlockSection').classList.add('hidden');
             document.getElementById('createSection').classList.add('hidden');
             document.getElementById('importSection').classList.add('hidden');
-            status(t('welcome'), 'success');
         } else {
-            document.getElementById('loginModal').classList.remove('closed');
             document.getElementById('loginOptions').classList.remove('hidden');
             document.getElementById('unlockSection').classList.add('hidden');
             document.getElementById('createSection').classList.add('hidden');
             document.getElementById('importSection').classList.add('hidden');
-            status(t('welcome'), 'success');
         }
+        status(t('welcome'), 'success');
+        
     } catch (e) {
         console.error('Exit wallet error:', e);
         showNotification('error', '❌', 'Error');
@@ -4864,18 +6124,9 @@ async function addCreateWallet() {
     const pass = document.getElementById('addCreatePass').value;
     const pass2 = document.getElementById('addCreatePass2').value;
     
-    if (!addNewMnemonic) { 
-        toast(t('generateFirst'), 'error'); 
-        return; 
-    }
-    if (pass.length < 6) { 
-        toast(t('passMin'), 'error'); 
-        return; 
-    }
-    if (pass !== pass2) { 
-        toast(t('passMatch'), 'error'); 
-        return; 
-    }
+    if (!addNewMnemonic) { toast(t('generateFirst'), 'error'); return; }
+    if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+    if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
     
     try {
         const wallet = ethers.Wallet.fromMnemonic(addNewMnemonic);
@@ -4893,6 +6144,7 @@ async function addCreateWallet() {
             status(t('walletAdded'), 'success');
             showNotification('success', '✅', t('walletAdded'));
             
+            loadFavorites();
             await refreshAll();
             await loadFullTxHistory();
         }
@@ -4906,18 +6158,9 @@ async function addImportWallet() {
     const pass = document.getElementById('addImportPass').value;
     const pass2 = document.getElementById('addImportPass2').value;
     
-    if (!seed) { 
-        toast(t('seedPlaceholder'), 'error'); 
-        return; 
-    }
-    if (pass.length < 6) { 
-        toast(t('passMin'), 'error'); 
-        return; 
-    }
-    if (pass !== pass2) { 
-        toast(t('passMatch'), 'error'); 
-        return; 
-    }
+    if (!seed) { toast(t('seedPlaceholder'), 'error'); return; }
+    if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+    if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
     
     try {
         const wallet = ethers.Wallet.fromMnemonic(seed);
@@ -4935,6 +6178,7 @@ async function addImportWallet() {
             status(t('walletAdded'), 'success');
             showNotification('success', '✅', t('walletAdded'));
             
+            loadFavorites();
             await refreshAll();
             await loadFullTxHistory();
         }
@@ -4984,18 +6228,9 @@ async function createWallet() {
     const pass = document.getElementById('createPass').value;
     const pass2 = document.getElementById('createPass2').value;
     
-    if (!newMnemonic) { 
-        toast(t('generateFirst'), 'error'); 
-        return; 
-    }
-    if (pass.length < 6) { 
-        toast(t('passMin'), 'error'); 
-        return; 
-    }
-    if (pass !== pass2) { 
-        toast(t('passMatch'), 'error'); 
-        return; 
-    }
+    if (!newMnemonic) { toast(t('generateFirst'), 'error'); return; }
+    if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+    if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
     
     try {
         const wallet = ethers.Wallet.fromMnemonic(newMnemonic);
@@ -5017,6 +6252,7 @@ async function createWallet() {
             document.getElementById('createPass2').value = '';
             newMnemonic = '';
             
+            loadFavorites();
             await refreshAll();
             await loadFullTxHistory();
         }
@@ -5030,18 +6266,9 @@ async function importWallet() {
     const pass = document.getElementById('importPass').value;
     const pass2 = document.getElementById('importPass2').value;
     
-    if (!seed) { 
-        toast(t('seedPlaceholder'), 'error'); 
-        return; 
-    }
-    if (pass.length < 6) { 
-        toast(t('passMin'), 'error'); 
-        return; 
-    }
-    if (pass !== pass2) { 
-        toast(t('passMatch'), 'error'); 
-        return; 
-    }
+    if (!seed) { toast(t('seedPlaceholder'), 'error'); return; }
+    if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
+    if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
     
     try {
         const wallet = ethers.Wallet.fromMnemonic(seed);
@@ -5059,6 +6286,7 @@ async function importWallet() {
             status(t('walletImported'), 'success');
             showNotification('success', '🎉', t('walletImported'));
             
+            loadFavorites();
             await refreshAll();
             await loadFullTxHistory();
         }
@@ -5082,7 +6310,7 @@ async function unlockWallet() {
         state.unlocked = true;
         state.currentPassword = pass;
         
-        // 🔄 مهاجرت خودکار و بی‌صدا به AES
+        // 🔄 مهاجرت خودکار و بی‌صدا
         const currentWallet = state.wallets[state.activeWalletIndex];
         if (currentWallet) {
             await tryMigrateWallet(currentWallet, pass);
@@ -5094,16 +6322,192 @@ async function unlockWallet() {
         status(t('walletUnlocked'), 'success');
         showNotification('success', '🔓', t('walletUnlocked'));
         
+        loadFavorites();
+        
         if (state.pendingSwitchIndex !== undefined && state.pendingSwitchIndex !== state.activeWalletIndex) {
             const targetIndex = state.pendingSwitchIndex;
             state.pendingSwitchIndex = undefined;
             setTimeout(() => switchWallet(targetIndex), 500);
         } else {
+            loadTxHistoryFromCache();
+            renderTxHistory();
             await refreshAll();
             await loadFullTxHistory();
         }
     } catch (e) { 
         toast(t('passWrong'), 'error'); 
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AVA CLOUD API
+// ═══════════════════════════════════════════════════════════════
+async function fetchAVAXTransactions(address) {
+    try {
+        const url = `${CONFIG.avaCloud.baseUrl}/v1/chains/${CONFIG.avaCloud.chainId}/addresses/${address}/transactions?pageSize=${CONFIG.avaCloud.pageSize}`;
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.transactions || [];
+    } catch (e) {
+        console.error('AvaCloud AVAX fetch:', e);
+        return [];
+    }
+}
+
+async function fetchNFTTransactions(address) {
+    try {
+        const url = `${CONFIG.avaCloud.baseUrl}/v1/chains/${CONFIG.avaCloud.chainId}/addresses/${address}/nft-transactions?pageSize=${CONFIG.avaCloud.pageSize}`;
+        const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+        if (!response.ok) return [];
+        const data = await response.json();
+        return data.transactions || [];
+    } catch (e) {
+        console.error('AvaCloud NFT fetch:', e);
+        return [];
+    }
+}
+
+function mergeAvaCloudTransactions(avaxTxs, nftTxs) {
+    if (!state.address) return;
+    
+    const myAddress = state.address.toLowerCase();
+    const existingHashes = new Set(state.txHistory.map(t => t.hash));
+    let newCount = 0;
+    
+    for (const avaxTx of avaxTxs) {
+        if (existingHashes.has(avaxTx.txHash)) continue;
+        if (avaxTx.txStatus && avaxTx.txStatus !== 'success') continue;
+        
+        const valueWei = avaxTx.value || '0';
+        if (valueWei === '0') continue;
+        
+        const fromAddr = (avaxTx.from?.address || '').toLowerCase();
+        const toAddr = (avaxTx.to?.address || '').toLowerCase();
+        
+        const isIncoming = toAddr === myAddress && fromAddr !== myAddress;
+        const isOutgoing = fromAddr === myAddress && toAddr !== myAddress;
+        
+        if (!isIncoming && !isOutgoing) continue;
+        
+        const valueAvax = parseFloat(ethers.utils.formatEther(valueWei));
+        
+        let gasFeeAvax = '0';
+        if (avaxTx.gasUsed && avaxTx.gasPrice) {
+            try {
+                const gasUsedBN = ethers.BigNumber.from(avaxTx.gasUsed);
+                const gasPriceBN = ethers.BigNumber.from(avaxTx.gasPrice);
+                const feeWei = gasUsedBN.mul(gasPriceBN);
+                gasFeeAvax = parseFloat(ethers.utils.formatEther(feeWei)).toFixed(6);
+            } catch (e) {}
+        }
+        
+        const txRecord = {
+            hash: avaxTx.txHash,
+            type: 'avax',
+            direction: isIncoming ? 'in' : 'out',
+            from: avaxTx.from?.address || '',
+            to: avaxTx.to?.address || '',
+            value: valueAvax,
+            gasFee: isOutgoing ? gasFeeAvax : null,
+            timestamp: (avaxTx.blockTimestamp || 0) * 1000,
+            blockNumber: avaxTx.blockNumber || 0,
+            fromAvaCloud: true
+        };
+        
+        state.txHistory.push(txRecord);
+        existingHashes.add(avaxTx.txHash);
+        newCount++;
+    }
+    
+    for (const nftTx of nftTxs) {
+        if (existingHashes.has(nftTx.txHash)) continue;
+        
+        const fromAddr = (nftTx.from?.address || '').toLowerCase();
+        const toAddr = (nftTx.to?.address || '').toLowerCase();
+        
+        const isIncoming = toAddr === myAddress && fromAddr !== myAddress;
+        const isOutgoing = fromAddr === myAddress && toAddr !== myAddress;
+        
+        if (!isIncoming && !isOutgoing) continue;
+        
+        const contractAddr = (nftTx.erc1155TokenMetadata?.address || 
+                              nftTx.erc721TokenMetadata?.address || '').toLowerCase();
+        
+        const isOurContract = CONFIG.nftContracts.some(
+            c => c.address.toLowerCase() === contractAddr
+        );
+        
+        if (!isOurContract) continue;
+        
+        const tokenId = nftTx.erc1155TokenId || nftTx.erc721TokenId || '0';
+        const amount = parseInt(nftTx.erc1155TokenQuantity || '1');
+        const nftName = nftTx.erc1155TokenMetadata?.name || 
+                       nftTx.erc721TokenMetadata?.name || 
+                       `NFT #${tokenId}`;
+        const image = nftTx.erc1155TokenMetadata?.imageUri || 
+                     nftTx.erc721TokenMetadata?.imageUri || null;
+        
+        const contractInfo = CONFIG.nftContracts.find(
+            c => c.address.toLowerCase() === contractAddr
+        );
+        const collection = contractInfo?.name || 'Unknown Collection';
+        const finalImage = image || contractInfo?.image || null;
+        
+        const txRecord = {
+            hash: nftTx.txHash,
+            type: 'nft',
+            direction: isIncoming ? 'in' : 'out',
+            from: nftTx.from?.address || '',
+            to: nftTx.to?.address || '',
+            contract: contractAddr,
+            tokenId: tokenId,
+            amount: amount,
+            nftName: nftName.includes('#') ? nftName : `${collection} #${tokenId}`,
+            image: finalImage,
+            collection: collection,
+            gasFee: null,
+            timestamp: (nftTx.blockTimestamp || 0) * 1000,
+            blockNumber: nftTx.blockNumber || 0,
+            fromAvaCloud: true
+        };
+        
+        state.txHistory.push(txRecord);
+        existingHashes.add(nftTx.txHash);
+        newCount++;
+    }
+    
+    state.txHistory.sort((a, b) => b.timestamp - a.timestamp);
+    if (state.txHistory.length > 100) state.txHistory.length = 100;
+    
+    saveTxToCache();
+    renderTxHistory();
+    
+    console.log(`✅ Merged ${newCount} new transactions`);
+    return newCount;
+}
+
+async function loadFullTxHistory() {
+    if (!state.address) return;
+    
+    try {
+        // 🆕 status رو تغییر نمیدیم — "متصل" میمونه
+        const [avaxTxs, nftTxs] = await Promise.all([
+            fetchAVAXTransactions(state.address),
+            fetchNFTTransactions(state.address)
+        ]);
+        
+        const newCount = mergeAvaCloudTransactions(avaxTxs, nftTxs);
+        
+        if (newCount > 0) {
+            console.log(`✅ Merged ${newCount} new transactions`);
+        }
+        
+        // 🆕 برگرداندن status به "متصل"
+        restoreConnectedStatus();
+    } catch (e) {
+        console.error('Load full history:', e);
+        restoreConnectedStatus();
     }
 }
 
@@ -5128,6 +6532,9 @@ async function init() {
         }
         state.provider = provider;
         
+        startPriceUpdater();
+        applyBalanceVisibility();
+        
         loadWallets();
         
         if (state.wallets.length > 0) {
@@ -5142,6 +6549,7 @@ async function init() {
             
             loadTxHistoryFromCache();
             renderTxHistory();
+            loadFavorites();
             
             if (Settings.getBiometricEnabled() && biometricAvailable) {
                 status(t('waitingFingerprint'), 'info');
@@ -5183,11 +6591,22 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(() => {
         updateUI();
         init();
+        
+        const swapFromInput = document.getElementById('swapFromAmount');
+        if (swapFromInput) {
+            swapFromInput.addEventListener('input', updateSwapRate);
+        }
     }, 100);
 });
 
 window.addEventListener('load', function() {
     updateUI();
+});
+
+window.addEventListener('beforeunload', function() {
+    if (state.priceUpdateInterval) {
+        clearInterval(state.priceUpdateInterval);
+    }
 });
 </script>
 
