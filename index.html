@@ -3648,15 +3648,14 @@ function updateUSDDisplay() {
 }
 
 function startPriceUpdater() {
-    if (state.priceUpdateInterval) {
-        clearInterval(state.priceUpdateInterval);
-    }
-    
+    // فقط یه بار قیمت بگیر
     updateAVAXPrice();
     
-    state.priceUpdateInterval = setInterval(() => {
-        updateAVAXPrice();
-    }, 60000);
+    // interval رو حذف کن
+    if (state.priceUpdateInterval) {
+        clearInterval(state.priceUpdateInterval);
+        state.priceUpdateInterval = null;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
