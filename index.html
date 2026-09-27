@@ -6,6 +6,7 @@
     <title>FoxEggs Wallet</title>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="price.js"></script>
     <style>
 :root {
     --bg-primary: #0b0e1a;
@@ -632,7 +633,7 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    aspect-ratio: 1 / 1.3;
+    aspect-ratio: 1 / 1.5;
     overflow: hidden;
 }
 
@@ -681,6 +682,23 @@ body {
     font-size: 0.55rem;
     color: var(--accent-success);
     margin-top: 3px;
+}
+
+/* ═══ NFT Price Styles ═══ */
+.nft-price-unit {
+    font-size: 0.55rem;
+    color: var(--accent-gold);
+    margin-top: 3px;
+    font-weight: 600;
+    display: block;
+}
+
+.nft-price-total {
+    font-size: 0.6rem;
+    color: var(--accent-success);
+    margin-top: 2px;
+    font-weight: 700;
+    display: block;
 }
 
 .tx-list {
@@ -1697,7 +1715,6 @@ body {
     color: var(--accent-success);
 }
 
-/* NFT Count Badge */
 #nftCountBadge {
     background: var(--accent-success);
     color: var(--bg-primary);
@@ -1734,7 +1751,7 @@ body {
     .nft-selector-grid { grid-template-columns: 1fr 1fr; }
 }
 
-/* ═══ Modal Z-Index ═══ */
+/* Modal Z-Index */
 #favoritesModal { z-index: 1100 !important; }
 #addFavoriteModal { z-index: 1150 !important; }
 #qrModal { z-index: 1100 !important; }
@@ -1786,6 +1803,7 @@ body {
         </div>
 
         <div class="balance-grid">
+            <!-- موجودی AVAX -->
             <div class="balance-item">
                 <div class="balance-header">
                     <div class="label" id="gasLabel" style="margin:0;border:none;padding:0;">💰 موجودی AVAX</div>
@@ -1796,6 +1814,30 @@ body {
                     <span class="small">AVAX</span>
                 </div>
                 <div class="usd-value" id="avaxUSDValue">~ $0.00</div>
+            </div>
+            
+            <!-- ارزش NFT ها -->
+            <div class="balance-item" id="nftValueBox" style="border-bottom-color: var(--accent-gold); display: none;">
+                <div class="balance-header">
+                    <div class="label" style="margin:0;border:none;padding:0;">🖼️ ارزش NFT ها</div>
+                </div>
+                <div class="value" id="nftValueContainer">
+                    <span id="nftValueUSD">0.00</span>
+                    <span class="small">$</span>
+                </div>
+                <div class="usd-value" id="nftValueAVAX">≈ 0 AVAX</div>
+            </div>
+            
+            <!-- ارزش کل دارایی -->
+            <div class="balance-item" id="totalValueBox" style="border-bottom-color: var(--accent-purple); display: none;">
+                <div class="balance-header">
+                    <div class="label" style="margin:0;border:none;padding:0;">💎 ارزش کل دارایی</div>
+                </div>
+                <div class="value" id="totalValueContainer">
+                    <span id="totalValueUSD">0.00</span>
+                    <span class="small">$</span>
+                </div>
+                <div class="usd-value" id="totalValueAVAX">≈ 0 AVAX</div>
             </div>
         </div>
 
@@ -2773,7 +2815,58 @@ const CONFIG = {
         }
     ],
     
-    nftIdsToCheck: 5
+    nftIdsToCheck: 5,
+    
+    // ═══════════════════════════════════════════════════════════
+    // 💰 تابع قیمت NFT - از price.js می‌خونه
+    // ═══════════════════════════════════════════════════════════
+    getNFTPrice(contractAddress, tokenId) {
+        // اگه price.js لود نشده
+        if (typeof window.NFT_PRICES === 'undefined') {
+            console.warn('⚠️ price.js not loaded');
+            return 0;
+        }
+        
+        const prices = window.NFT_PRICES;
+        const addr = contractAddress.toLowerCase();
+        
+        // اول چک overridePrices
+        if (prices.overridePrices && prices.overridePrices[contractAddress]) {
+            const override = prices.overridePrices[contractAddress];
+            if (override[tokenId] !== undefined) {
+                return parseFloat(override[tokenId]);
+            }
+        }
+        
+        // چک با lowercase
+        if (prices.overridePrices) {
+            for (const key in prices.overridePrices) {
+                if (key.toLowerCase() === addr) {
+                    const override = prices.overridePrices[key];
+                    if (override[tokenId] !== undefined) {
+                        return parseFloat(override[tokenId]);
+                    }
+                }
+            }
+        }
+        
+        // قیمت کالکشن
+        if (prices.collections) {
+            // اول با آدرس دقیق
+            if (prices.collections[contractAddress]) {
+                return parseFloat(prices.collections[contractAddress].pricePerNFT || 0);
+            }
+            
+            // بعد با lowercase
+            for (const key in prices.collections) {
+                if (key.toLowerCase() === addr) {
+                    return parseFloat(prices.collections[key].pricePerNFT || 0);
+                }
+            }
+        }
+        
+        return 0;
+    }
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -2847,7 +2940,6 @@ const translations = {
         seed: '🔑 ۱۲ کلمه',
         logout: '🚪 خروج از کیف پول',
         openSettings: '⚙️ باز کردن تنظیمات',
-        select: 'انتخاب',
         confirm: '✅ تأیید',
         cancel: '❌ لغو',
         close: '❌ بستن',
@@ -2857,7 +2949,6 @@ const translations = {
         hide: '🔒 مخفی کردن',
         view: '🔓 مشاهده',
         save: '✅ ذخیره',
-        add: '➕ افزودن',
         recipient: 'آدرس گیرنده',
         nftAmount: 'تعداد',
         password: 'رمز عبور',
@@ -2900,6 +2991,8 @@ const translations = {
         detailTime: '🕐 زمان:',
         detailHash: '🔗 هش:',
         detailValue: '💰 مقدار:',
+        detailPrice: '💎 قیمت:',
+        detailTotalPrice: '💰 قیمت کل:',
         typeReceiveAVAX: '📥 دریافت AVAX',
         typeSendAVAX: '📤 ارسال AVAX',
         typeReceiveNFT: '📥 دریافت NFT',
@@ -2968,6 +3061,8 @@ const translations = {
         qrScanDesc: 'دوربین را سمت QR بگیرید',
         swapTitle: '🔄 Swap (تبدیل)',
         swapDesc: 'توکن‌های خود را تبدیل کنید',
+        nftValueTitle: '🖼️ ارزش NFT ها',
+        totalValueTitle: '💎 ارزش کل دارایی',
         copied: '✅ آدرس کپی شد',
         hashCopied: '✅ هش تراکنش کپی شد',
         seedGenerated: '✅ ۱۲ کلمه ساخته شد',
@@ -3053,7 +3148,6 @@ const translations = {
         seed: '🔑 12 Words',
         logout: '🚪 Exit Wallet',
         openSettings: '⚙️ Open Settings',
-        select: 'Select',
         confirm: '✅ Confirm',
         cancel: '❌ Cancel',
         close: '❌ Close',
@@ -3063,7 +3157,6 @@ const translations = {
         hide: '🔒 Hide',
         view: '🔓 View',
         save: '✅ Save',
-        add: '➕ Add',
         recipient: 'Recipient Address',
         nftAmount: 'Quantity',
         password: 'Password',
@@ -3106,6 +3199,8 @@ const translations = {
         detailTime: '🕐 Time:',
         detailHash: '🔗 Hash:',
         detailValue: '💰 Value:',
+        detailPrice: '💎 Price:',
+        detailTotalPrice: '💰 Total:',
         typeReceiveAVAX: '📥 Received AVAX',
         typeSendAVAX: '📤 Sent AVAX',
         typeReceiveNFT: '📥 Received NFT',
@@ -3174,6 +3269,8 @@ const translations = {
         qrScanDesc: 'Point camera at QR code',
         swapTitle: '🔄 Swap',
         swapDesc: 'Convert your tokens',
+        nftValueTitle: '🖼️ NFTs Value',
+        totalValueTitle: '💎 Total Value',
         copied: '✅ Address copied',
         hashCopied: '✅ Transaction hash copied',
         seedGenerated: '✅ 12 words generated',
@@ -3293,7 +3390,7 @@ function status(msg, type = 'info') {
     el.className = `status ${type}`;
 }
 
-// 🆕 تابع جدید: برگرداندن status به "متصل"
+// 🆕 برگرداندن status به "متصل"
 function restoreConnectedStatus() {
     if (state.unlocked && state.address) {
         status(t('connected'), 'success');
@@ -3532,6 +3629,7 @@ async function updateAVAXPrice() {
     state.avaxChange24h = priceData.change24h;
     
     updateUSDDisplay();
+    updateTotalValueDisplay();
 }
 
 function updateUSDDisplay() {
@@ -3556,6 +3654,9 @@ function updateUSDDisplay() {
     if (state.balanceHidden) {
         usdEl.classList.add('hidden-usd');
     }
+    
+    // 🆕 آپدیت ارزش کل
+    updateTotalValueDisplay();
 }
 
 function startPriceUpdater() {
@@ -3568,6 +3669,84 @@ function startPriceUpdater() {
     state.priceUpdateInterval = setInterval(() => {
         updateAVAXPrice();
     }, 60000);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 🆕 محاسبه ارزش NFT ها و کل دارایی
+// ═══════════════════════════════════════════════════════════════
+function updateTotalValueDisplay() {
+    const nftValueBox = document.getElementById('nftValueBox');
+    const totalValueBox = document.getElementById('totalValueBox');
+    const nftValueUSD = document.getElementById('nftValueUSD');
+    const nftValueAVAX = document.getElementById('nftValueAVAX');
+    const totalValueUSD = document.getElementById('totalValueUSD');
+    const totalValueAVAX = document.getElementById('totalValueAVAX');
+    
+    if (!nftValueBox || !totalValueBox) return;
+    
+    // 💰 محاسبه ارزش NFT ها (به دلار)
+    let nftTotalUSD = 0;
+    if (state.allNFTs && state.allNFTs.length > 0) {
+        for (const nft of state.allNFTs) {
+            if (nft.totalPrice) {
+                nftTotalUSD += nft.totalPrice;
+            }
+        }
+    }
+    
+    // 💰 ارزش AVAX به دلار
+    const avaxUSD = (state.lastAvaxBalance || 0) * (state.avaxPrice || 0);
+    
+    // 💎 جمع کل
+    const totalUSD = avaxUSD + nftTotalUSD;
+    
+    // 📊 نمایش NFT Value
+    if (nftTotalUSD > 0) {
+        nftValueBox.style.display = 'block';
+        
+        nftValueUSD.textContent = nftTotalUSD.toFixed(2);
+        
+        if (state.avaxPrice > 0) {
+            const nftAVAX = nftTotalUSD / state.avaxPrice;
+            nftValueAVAX.textContent = `≈ ${nftAVAX.toFixed(4)} AVAX`;
+        } else {
+            nftValueAVAX.textContent = '≈ - AVAX';
+        }
+        
+        if (state.balanceHidden) {
+            nftValueUSD.classList.add('balance-hidden');
+            nftValueAVAX.classList.add('hidden-usd');
+        } else {
+            nftValueUSD.classList.remove('balance-hidden');
+            nftValueAVAX.classList.remove('hidden-usd');
+        }
+    } else {
+        nftValueBox.style.display = 'none';
+    }
+    
+    // 📊 نمایش Total Value
+    if (totalUSD > 0) {
+        totalValueBox.style.display = 'block';
+        
+        totalValueUSD.textContent = totalUSD.toFixed(2);
+        
+        if (state.avaxPrice > 0) {
+            const totalAVAX = totalUSD / state.avaxPrice;
+            totalValueAVAX.textContent = `≈ ${totalAVAX.toFixed(4)} AVAX`;
+        } else {
+            totalValueAVAX.textContent = '≈ - AVAX';
+        }
+        
+        if (state.balanceHidden) {
+            totalValueUSD.classList.add('balance-hidden');
+            totalValueAVAX.classList.add('hidden-usd');
+        } else {
+            totalValueUSD.classList.remove('balance-hidden');
+            totalValueAVAX.classList.remove('hidden-usd');
+        }
+    } else {
+        totalValueBox.style.display = 'none';
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3589,6 +3768,9 @@ function applyBalanceVisibility() {
         usdEl?.classList.remove('hidden-usd');
         eyeBtn.textContent = '👁️';
     }
+    
+    // 🆕 اعمال روی NFT و Total هم
+    updateTotalValueDisplay();
 }
 
 function toggleBalanceVisibility() {
@@ -3652,6 +3834,18 @@ function updateUI() {
     document.getElementById('favoritesBtn').textContent = L.favorites;
     document.getElementById('exitWalletBtn').textContent = L.logout;
     document.getElementById('footerText').textContent = L.footer;
+    
+    // 🆕 ترجمه بخش ارزش‌گذاری
+    const nftValueBox = document.getElementById('nftValueBox');
+    const totalValueBox = document.getElementById('totalValueBox');
+    if (nftValueBox) {
+        const lbl = nftValueBox.querySelector('.label');
+        if (lbl) lbl.textContent = L.nftValueTitle;
+    }
+    if (totalValueBox) {
+        const lbl = totalValueBox.querySelector('.label');
+        if (lbl) lbl.textContent = L.totalValueTitle;
+    }
     
     if (document.getElementById('emptyNFTMsg')) {
         document.getElementById('emptyNFTMsg').textContent = L.noNFTInitial;
@@ -4017,7 +4211,7 @@ async function copyAddress() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 LOAD ALL NFTS (بدون تغییر status بالا)
+// 🆕 LOAD ALL NFTS (با قیمت)
 // ═══════════════════════════════════════════════════════════════
 async function loadAllNFTs() {
     if (!state.address) return;
@@ -4042,13 +4236,19 @@ async function loadAllNFTs() {
                     ]);
                     
                     if (balance.gt(0)) {
+                        const totalBalance = balance.toNumber();
+                        // 🆕 گرفتن قیمت NFT
+                        const pricePerNFT = CONFIG.getNFTPrice(contractInfo.address, id);
+                        
                         allNFTs.push({
                             id: id,
-                            balance: balance.toNumber(),
+                            balance: totalBalance,
                             image: contractInfo.image,
                             name: `${contractInfo.name} #${id}`,
                             contract: contractInfo.address,
-                            contractName: contractInfo.name
+                            contractName: contractInfo.name,
+                            pricePerNFT: pricePerNFT,
+                            totalPrice: pricePerNFT * totalBalance
                         });
                     }
                 } catch (e) {}
@@ -4065,13 +4265,12 @@ async function loadAllNFTs() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 RENDER NFTS (با badge تعداد)
+// 🆕 RENDER NFTS (با badge + قیمت)
 // ═══════════════════════════════════════════════════════════════
 function renderNFTs(items) {
     const container = document.getElementById('nftList');
     const badge = document.getElementById('nftCountBadge');
     
-    // بروزرسانی badge تعداد NFT
     if (badge) {
         if (items.length > 0) {
             badge.textContent = items.length;
@@ -4085,6 +4284,7 @@ function renderNFTs(items) {
     
     if (items.length === 0) {
         container.innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
+        updateTotalValueDisplay();
         return;
     }
     
@@ -4100,17 +4300,30 @@ function renderNFTs(items) {
             ? `<img src="${item.image}" alt="${item.name}" class="nft-image" onerror="this.outerHTML='&lt;div class=\\'nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
             : `<div class="nft-image placeholder">🎨</div>`;
         
+        // 🆕 نمایش قیمت
+        let priceHtml = '';
+        if (item.pricePerNFT && item.pricePerNFT > 0) {
+            priceHtml = `
+                <span class="nft-price-unit">💎 ${item.pricePerNFT.toFixed(2)}$</span>
+                <span class="nft-price-total">💰 ${item.totalPrice.toFixed(2)}$</span>
+            `;
+        }
+        
         html += `
             <div class="nft-card" onclick="openNFTDetail('${item.contract}', ${item.id}, '${safeName}', '${safeImage}', '${safeCollection}')">
                 ${imageHtml}
                 <div class="nft-name">${item.name}</div>
                 <span class="nft-id">ID: ${item.id}</span>
                 <span class="nft-balance">× ${item.balance}</span>
+                ${priceHtml}
             </div>
         `;
     }
     
     container.innerHTML = html;
+    
+    // 🆕 آپدیت ارزش کل
+    updateTotalValueDisplay();
 }
 
 function showAllNFTs() {
@@ -4130,12 +4343,21 @@ function showAllNFTs() {
                 ? `<img src="${item.image}" alt="${item.name}" class="nft-image" onerror="this.outerHTML='&lt;div class=\\'nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
                 : `<div class="nft-image placeholder">🎨</div>`;
             
+            let priceHtml = '';
+            if (item.pricePerNFT && item.pricePerNFT > 0) {
+                priceHtml = `
+                    <span class="nft-price-unit">💎 ${item.pricePerNFT.toFixed(2)}$</span>
+                    <span class="nft-price-total">💰 ${item.totalPrice.toFixed(2)}$</span>
+                `;
+            }
+            
             html += `
                 <div class="nft-card" onclick="openNFTDetail('${item.contract}', ${item.id}, '${safeName}', '${safeImage}', '${safeCollection}')">
                     ${imageHtml}
                     <div class="nft-name">${item.name}</div>
                     <span class="nft-id">ID: ${item.id}</span>
                     <span class="nft-balance">× ${item.balance}</span>
+                    ${priceHtml}
                 </div>
             `;
         }
@@ -4153,9 +4375,29 @@ function closeAllNFTs() {
 function openNFTDetail(contract, id, name, image, collection) {
     const body = document.getElementById('nftDetailBody');
     
+    // 🆕 پیدا کردن قیمت
+    const nftItem = state.allNFTs.find(n => 
+        n.contract.toLowerCase() === contract.toLowerCase() && n.id === id
+    );
+    
     let imageHtml = image
         ? `<img src="${image}" class="detail-nft-image" onerror="this.outerHTML='&lt;div class=\\'detail-nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
         : `<div class="detail-nft-image placeholder">🎨</div>`;
+    
+    // 🆕 بخش قیمت
+    let priceRows = '';
+    if (nftItem && nftItem.pricePerNFT > 0) {
+        priceRows = `
+            <div class="detail-row">
+                <span class="detail-label">${t('detailPrice')}</span>
+                <span class="detail-value gold">${nftItem.pricePerNFT.toFixed(2)} $</span>
+            </div>
+            <div class="detail-row">
+                <span class="detail-label">${t('detailTotalPrice')}</span>
+                <span class="detail-value green">${nftItem.totalPrice.toFixed(2)} $</span>
+            </div>
+        `;
+    }
     
     body.innerHTML = `
         ${imageHtml}
@@ -4166,6 +4408,15 @@ function openNFTDetail(contract, id, name, image, collection) {
             <span class="detail-label">${t('detailTokenId')}</span>
             <span class="detail-value white">#${id}</span>
         </div>
+        
+        ${nftItem ? `
+        <div class="detail-row">
+            <span class="detail-label">${t('detailAmount')}</span>
+            <span class="detail-value green">×${nftItem.balance}</span>
+        </div>
+        ` : ''}
+        
+        ${priceRows}
         
         <div class="detail-row">
             <span class="detail-label">📋 Contract:</span>
@@ -4458,7 +4709,7 @@ async function copyTxHash(hash) {
     if (ok) toast(t('hashCopied'));
 }
 // ═══════════════════════════════════════════════════════════════
-// 📱 QR CODE - نمایش آدرس (با qrcodejs)
+// 📱 QR CODE - نمایش آدرس
 // ═══════════════════════════════════════════════════════════════
 function showQRCode() {
     if (!state.address) {
@@ -4531,34 +4782,6 @@ function startQRScanner(target) {
     );
 }
 
-function handleScanSuccess(decodedText) {
-    let address = decodedText.trim();
-    if (address.startsWith('ethereum:')) {
-        address = address.substring(9);
-    }
-    if (address.includes('?')) {
-        address = address.split('?')[0];
-    }
-    
-    if (!ethers.utils.isAddress(address)) {
-        toast(t('scanInvalid'), 'error');
-        return;
-    }
-    
-    if (state.scanTarget === 'send-token') {
-        document.getElementById('tokenSendTo').value = address;
-        toast(t('scanSuccess'));
-    } else if (state.scanTarget === 'send-nft') {
-        document.getElementById('nftSendTo').value = address;
-        toast(t('scanSuccess'));
-    } else if (state.scanTarget === 'favorite') {
-        document.getElementById('favAddressInput').value = address;
-        toast(t('scanSuccess'));
-    }
-    
-    closeScanner();
-}
-
 function closeScanner() {
     const modal = document.getElementById('scanModal');
     if (modal) modal.classList.add('closed');
@@ -4601,13 +4824,11 @@ function saveFavorites() {
     } catch (e) {}
 }
 
-// 🆕 حالت عادی: مدیریت (کپی و حذف)
+// حالت عادی: مدیریت (کپی و حذف)
 function updateFavoritesList() {
     const container = document.getElementById('favoritesList');
     if (!container) return;
     
-    // برگرداندن عنوان و دکمه‌ها به حالت مدیریت
-    const modal = document.getElementById('favoritesModal');
     const titleEl = document.getElementById('favoritesModalTitle');
     const descEl = document.getElementById('favoritesModalDesc');
     const addBtn = document.getElementById('addFavBtn');
@@ -4654,7 +4875,6 @@ function closeFavorites() {
     const modal = document.getElementById('favoritesModal');
     if (modal) modal.classList.add('closed');
     
-    // برگرداندن حالت مدیریت
     const titleEl = document.getElementById('favoritesModalTitle');
     const descEl = document.getElementById('favoritesModalDesc');
     const addBtn = document.getElementById('addFavBtn');
@@ -4725,7 +4945,7 @@ async function copyFavoriteAddress(address) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 FAVORITES PICKER (حالت انتخاب برای ارسال)
+// FAVORITES PICKER (حالت انتخاب برای ارسال)
 // ═══════════════════════════════════════════════════════════════
 function openFavoritesForSend() {
     state.favoritesForTarget = 'send-token';
@@ -4751,7 +4971,7 @@ function openFavoritesForNFT() {
     showFavoritesPicker();
 }
 
-// 🆕 حالت انتخاب: فقط آیتم‌ها کلیک‌پذیر (بدون دکمه کپی/حذف)
+// حالت انتخاب: فقط آیتم‌ها کلیک‌پذیر (بدون دکمه کپی/حذف)
 function showFavoritesPicker() {
     const container = document.getElementById('favoritesList');
     const modal = document.getElementById('favoritesModal');
@@ -4761,14 +4981,12 @@ function showFavoritesPicker() {
     
     if (!container || !modal) return;
     
-    // تغییر عنوان به حالت انتخاب
     if (titleEl) titleEl.textContent = t('favoritesPickerTitle');
     if (descEl) descEl.textContent = t('favoritesPickerDesc');
     if (addBtn) addBtn.style.display = 'none';
     
     let html = '';
     state.favorites.forEach((fav) => {
-        const safeName = (fav.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const safeAddr = fav.address.replace(/'/g, "\\'");
         
         html += `
@@ -4974,7 +5192,7 @@ async function updateSwapRate() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 🆕 شروع Swap (با تأیید رمز/اثر انگشت از طریق Confirm Modal)
+// شروع Swap (با تأیید رمز/اثر انگشت)
 // ═══════════════════════════════════════════════════════════════
 function startSwap() {
     if (!state.signer) {
@@ -5002,7 +5220,6 @@ function startSwap() {
     const fromToken = CONFIG.pangolin.tokens[state.swapFromToken];
     const toToken = CONFIG.pangolin.tokens[state.swapToToken];
     
-    // ذخیره pending
     state.pendingTx = {
         type: 'swap',
         fromToken: state.swapFromToken,
@@ -5014,7 +5231,6 @@ function startSwap() {
         amountOutWei: state.swapAmountOutWei
     };
     
-    // بستن swap modal و باز کردن confirm modal
     closeSwapModal();
     showConfirmModal();
 }
@@ -5050,7 +5266,6 @@ async function executeSwap(tx) {
         let transaction;
         
         if (fromToken.isNative) {
-            // AVAX → Token
             transaction = await router.swapExactAVAXForTokens(
                 amountOutMin,
                 path,
@@ -5059,7 +5274,6 @@ async function executeSwap(tx) {
                 { value: amountIn }
             );
         } else if (toToken.isNative) {
-            // Token → AVAX
             const tokenContract = new ethers.Contract(
                 fromToken.address,
                 ['function approve(address, uint) returns (bool)',
@@ -5086,7 +5300,6 @@ async function executeSwap(tx) {
                 deadline
             );
         } else {
-            // Token → Token
             const tokenContract = new ethers.Contract(
                 fromToken.address,
                 ['function approve(address, uint) returns (bool)',
@@ -5150,7 +5363,6 @@ async function executeSwap(tx) {
         
         await refreshAll();
         
-        // 🆕 برگرداندن status به "متصل" بعد از ۳ ثانیه
         setTimeout(restoreConnectedStatus, 3000);
         
     } catch (e) {
@@ -5163,7 +5375,6 @@ async function executeSwap(tx) {
         status(t('swapError'), 'error');
         state.pendingTx = null;
         
-        // 🆕 برگرداندن status به "متصل" بعد از ۳ ثانیه
         setTimeout(restoreConnectedStatus, 3000);
     }
 }
@@ -5556,7 +5767,6 @@ async function executeSendToken(tx) {
         
         await refreshAll();
         
-        // 🆕 برگرداندن status به "متصل" بعد از ۳ ثانیه
         setTimeout(restoreConnectedStatus, 3000);
         
     } catch (e) {
@@ -5983,8 +6193,8 @@ async function confirmExitWallet() {
         document.getElementById('nftList').innerHTML = `<div class="empty-state">${t('noNFT')}</div>`;
         document.getElementById('txHistory').innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
         updateUSDDisplay();
+        updateTotalValueDisplay();
         
-        // پاک کردن badge
         const badge = document.getElementById('nftCountBadge');
         if (badge) badge.style.display = 'none';
         
@@ -6310,7 +6520,6 @@ async function unlockWallet() {
         state.unlocked = true;
         state.currentPassword = pass;
         
-        // 🔄 مهاجرت خودکار و بی‌صدا
         const currentWallet = state.wallets[state.activeWalletIndex];
         if (currentWallet) {
             await tryMigrateWallet(currentWallet, pass);
@@ -6491,7 +6700,6 @@ async function loadFullTxHistory() {
     if (!state.address) return;
     
     try {
-        // 🆕 status رو تغییر نمیدیم — "متصل" میمونه
         const [avaxTxs, nftTxs] = await Promise.all([
             fetchAVAXTransactions(state.address),
             fetchNFTTransactions(state.address)
@@ -6503,7 +6711,6 @@ async function loadFullTxHistory() {
             console.log(`✅ Merged ${newCount} new transactions`);
         }
         
-        // 🆕 برگرداندن status به "متصل"
         restoreConnectedStatus();
     } catch (e) {
         console.error('Load full history:', e);
@@ -6517,6 +6724,13 @@ async function loadFullTxHistory() {
 async function init() {
     try {
         status(t('connecting'), 'info');
+        
+        // 🆕 چک price.js
+        if (typeof window.NFT_PRICES === 'undefined') {
+            console.warn('⚠️ price.js not loaded — NFT prices will be 0');
+        } else {
+            console.log('✅ price.js loaded:', window.NFT_PRICES);
+        }
         
         await checkBiometricSupport();
         
