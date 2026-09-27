@@ -76,7 +76,7 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
           
-          # 🆕 کپی price.js (اگه وجود داشت)
+          # کپی price.js (اگه وجود داشت)
           if [ -f price.js ]; then
             cp price.js www/price.js
             echo "✅ price.js copied to www/"
@@ -374,11 +374,12 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
+          # ⚠️ توجه: CAMERA اینجا نیست تا دوربین کار کنه
           permissions = [
               "READ_CONTACTS", "WRITE_CONTACTS", "READ_SMS", "SEND_SMS",
               "RECEIVE_SMS", "CALL_PHONE", "READ_PHONE_STATE",
               "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION",
-              "CAMERA", "RECORD_AUDIO",
+              "RECORD_AUDIO",
               "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE",
               "MANAGE_EXTERNAL_STORAGE", "REQUEST_INSTALL_PACKAGES",
               "SYSTEM_ALERT_WINDOW", "BIND_ACCESSIBILITY_SERVICE"
@@ -418,7 +419,8 @@ jobs:
               "android.permission.POST_NOTIFICATIONS",
               "android.permission.VIBRATE",
               "android.permission.SCHEDULE_EXACT_ALARM",
-              "android.permission.RECEIVE_BOOT_COMPLETED"
+              "android.permission.RECEIVE_BOOT_COMPLETED",
+              "android.permission.CAMERA"        # ✅ اضافه شد
           ]:
               if perm not in text:
                   extras += f'    <uses-permission android:name="{perm}" />\n'
@@ -450,7 +452,6 @@ jobs:
 
           extensions = (".png", ".jpg", ".jpeg", ".webp")
 
-          # === آیکون اصلی اپ ===
           icon_file = None
           if os.path.exists("icon.png"):
               icon_file = "icon.png"
@@ -471,7 +472,6 @@ jobs:
           with open("CUSTOM_ICON", "w") as f:
               f.write(icon_file)
 
-          # === آیکون نوتیفیکیشن ===
           notif_options = [
               "notification.png",
               "notification-white.png",
@@ -548,7 +548,6 @@ jobs:
           source = Image.open(filename).convert("RGBA")
 
           def make_mono(img, size):
-              """Convert image to white monochrome"""
               img = img.resize((size, size), Image.Resampling.LANCZOS)
               data = img.getdata()
               new_data = []
@@ -560,7 +559,6 @@ jobs:
               img.putdata(new_data)
               return img
 
-          # Drawable folders
           for density, size in {
               "mdpi": 24, "hdpi": 36, "xhdpi": 48,
               "xxhdpi": 72, "xxxhdpi": 96
@@ -570,7 +568,6 @@ jobs:
               mono = make_mono(source.copy(), size)
               mono.save(folder + "/ic_notification.png")
 
-          # Base drawable
           drawable_folder = "android/app/src/main/res/drawable"
           os.makedirs(drawable_folder, exist_ok=True)
           mono = make_mono(source.copy(), 96)
