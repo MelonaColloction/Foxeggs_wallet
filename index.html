@@ -4588,6 +4588,11 @@ function openTxDetail(index) {
             </div>
             ` : ''}
             
+            <div class="detail-row">
+                <span class="detail-label">${t('detailTime')}</span>
+                <span class="detail-value white">${formatTime(tx.timestamp)}</span>
+            </div>
+            
             <div class="hash-row">
                 <span class="hash-label">${t('detailHash')}</span>
                 <span class="hash-value" onclick="copyTxHash('${tx.hash}')">${tx.hash.slice(0, 12)}...${tx.hash.slice(-8)}</span>
@@ -4630,6 +4635,11 @@ function openTxDetail(index) {
             </div>
             ` : ''}
             
+            <div class="detail-row">
+                <span class="detail-label">${t('detailTime')}</span>
+                <span class="detail-value white">${formatTime(tx.timestamp)}</span>
+            </div>
+            
             ${tx.hash ? `
             <div class="hash-row">
                 <span class="hash-label">${t('detailHash')}</span>
@@ -4660,6 +4670,11 @@ function openTxDetail(index) {
             <div class="detail-row">
                 <span class="detail-label">⛽ کارمزد:</span>
                 <span class="detail-value gold">${tx.gasFee || '0'} AVAX</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">${t('detailTime')}</span>
+                <span class="detail-value white">${formatTime(tx.timestamp)}</span>
             </div>
             
             <div class="hash-row">
