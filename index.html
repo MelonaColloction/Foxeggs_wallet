@@ -4621,17 +4621,17 @@ function openTxDetail(index) {
                 <span class="detail-value green">×${tx.amount || 1}</span>
             </div>
             
-            ${tx.from ? `
-            <div class="detail-row">
-                <span class="detail-label">${t('detailFrom')}</span>
-                <span class="detail-value" title="${tx.from}">${fullAddr(tx.from)}</span>
-            </div>
-            ` : ''}
-            
             ${tx.to ? `
             <div class="detail-row">
                 <span class="detail-label">${t('detailTo')}</span>
                 <span class="detail-value" title="${tx.to}">${fullAddr(tx.to)}</span>
+            </div>
+            ` : ''}
+            
+            ${tx.gasFee ? `
+            <div class="detail-row">
+                <span class="detail-label">${t('detailGas')}</span>
+                <span class="detail-value gold">${tx.gasFee} AVAX</span>
             </div>
             ` : ''}
             
