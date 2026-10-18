@@ -4229,22 +4229,21 @@ async function loadAllNFTs() {
                     ]);
                     
                     if (balance.gt(0)) {
-                        const totalBalance = balance.toNumber();
-                        const pricePerNFT = CONFIG.getNFTPrice(contractInfo.address, id);
-                        
-                        allNFTs.push({
-                            id: id,
-                            balance: totalBalance,
-                            image: contractInfo.image,
-                            name: `${contractInfo.name} #${id}`,
-                            contract: contractInfo.address,
-                            name: contractInfo.itemNames && contractInfo.itemNames[id]
-    ? `${contractInfo.itemNames[id]}`
-    : `${contractInfo.name} #${id}`,
-                            pricePerNFT: pricePerNFT,
-                            totalPrice: pricePerNFT * totalBalance
-                        });
-                    }
+    const totalBalance = balance.toNumber();
+    const pricePerNFT = CONFIG.getNFTPrice(contractInfo.address, id);
+    const finalName = (contractInfo.itemNames && contractInfo.itemNames[id]) ? contractInfo.itemNames[id] : (contractInfo.name + " #" + id);
+    
+    allNFTs.push({
+        id: id,
+        balance: totalBalance,
+        image: contractInfo.image,
+        contract: contractInfo.address,
+        contractName: contractInfo.name,
+        name: finalName,
+        pricePerNFT: pricePerNFT,
+        totalPrice: pricePerNFT * totalBalance
+    });
+}
                 } catch (e) {}
             }
         }
@@ -6933,4 +6932,4 @@ window.addEventListener('beforeunload', function() {
 </script>
 
 </body>
-                        </html>
+    </html>
