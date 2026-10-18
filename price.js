@@ -17,7 +17,7 @@ window.NFT_PRICES = {
     currency: 'USDT',
     
     // 📅 آخرین بروزرسانی
-    lastUpdate: '2026-09-27',
+    lastUpdate: '2026-10-18',
     
     // ═══════════════════════════════════════════════════════════
     // 💰 قیمت هر کالکشن (به دلار)
@@ -30,10 +30,16 @@ window.NFT_PRICES = {
             pricePerNFT: 30
         },
         
-        // 🍂 FoxEggs Autumn Edition — ۱۵ دلار
+        // 🍂 FoxEggs Autumn Edition — ۲۰ دلار (ارتقا از ۱۵)
         '0xcfd6c099bc8B3c91D47D62156AEc6BA128eB6B92': {
             name: 'FoxEggs Autumn Edition',
-            pricePerNFT: 15
+            pricePerNFT: 20
+        },
+        
+        // ❄️ Fox Eggs: Frozen Realm — ۲۵ دلار
+        '0xaa890ebf2a6356c9da9e5b13c01db4ac88a70c8a': {
+            name: 'Fox Eggs: Frozen Realm',
+            pricePerNFT: 25
         }
     },
     
@@ -51,8 +57,8 @@ window.NFT_PRICES = {
     //         2: 100,   // ID 2 = 100$
     //         5: 75     // ID 5 = 75$
     //     },
-    //     '0xcfd6c099bc8B3c91D47D62156AEc6BA128eB6B92': {
-    //         3: 25     // ID 3 = 25$ (بجای 15$)
+    //     '0xaa890ebf2a6356c9da9e5b13c01db4ac88a70c8a': {
+    //         1: 50     // ID 1 = 50$ (بجای 25$)
     //     }
     // }
     //
