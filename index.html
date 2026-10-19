@@ -154,6 +154,30 @@ html[data-theme="purple"] {
     --shadow-color: rgba(0, 0, 0, 0.6);
 }
 
+html[data-theme="black"] {
+    --bg-primary: #000000;
+    --bg-secondary: #0a0a0a;
+    --bg-card: #121212;
+    --bg-input: #000000;
+    --bg-status: #0a0a0a;
+    --bg-item: #0a0a0a;
+    --bg-item-hover: #1a1a1a;
+    --border-color: #222222;
+    --border-light: #1a1a1a;
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666666;
+    --text-placeholder: #444444;
+    --accent-primary: #e94560;
+    --accent-success: #4ade80;
+    --accent-gold: #ffd700;
+    --accent-purple: #a78bfa;
+    --accent-warning: #fbbf24;
+    --accent-bg-light: #1a1a1a;
+    --accent-bg-success: #0a1a0a;
+    --shadow-color: rgba(0, 0, 0, 0.9);
+}
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -1326,6 +1350,8 @@ body {
 .theme-preview.forest::before { background: #22c55e; }
 .theme-preview.purple { background: #150b1f; }
 .theme-preview.purple::before { background: #d946ef; }
+.theme-preview.black { background: #000000; border: 1px solid #333; }
+.theme-preview.black::before { background: #e94560; }
 
 .warning-box {
     background: rgba(233, 69, 96, 0.1);
@@ -2195,6 +2221,10 @@ body {
                     <div class="theme-preview purple"></div>
                     <div class="theme-name" id="themePurpleName">بنفش</div>
                 </div>
+                <div class="theme-option" data-theme="black" onclick="changeTheme('black')">
+                    <div class="theme-preview black"></div>
+                    <div class="theme-name" id="themeBlackName">مشکی (OLED)</div>
+                </div>
             </div>
             
             <div class="section-title" style="margin-top: 20px;" id="securitySectionLabel">🔐 امنیت</div>
@@ -2456,8 +2486,8 @@ document.documentElement.setAttribute('data-theme', Settings.getTheme());
 function changeTheme(theme) {
     Settings.setTheme(theme);
     const names = {
-        fa: { dark: 'تیره', light: 'روشن', autumn: 'پاییزی', ocean: 'اقیانوس', forest: 'جنگل', purple: 'بنفش' },
-        en: { dark: 'Dark', light: 'Light', autumn: 'Autumn', ocean: 'Ocean', forest: 'Forest', purple: 'Purple' }
+        fa: { dark: 'تیره', light: 'روشن', autumn: 'پاییزی', ocean: 'اقیانوس', forest: 'جنگل', purple: 'بنفش', black: 'مشکی' },
+        en: { dark: 'Dark', light: 'Light', autumn: 'Autumn', ocean: 'Ocean', forest: 'Forest', purple: 'Purple', black: 'Black' }
     };
     const themeName = names[currentLang][theme] || theme;
     showNotification('info', 
@@ -3010,6 +3040,7 @@ const translations = {
         themeOcean: 'اقیانوس',
         themeForest: 'جنگل',
         themePurple: 'بنفش',
+        themeBlack: 'مشکی',
         securitySection: '🔐 امنیت',
         bioLoginTitle: '👆 ورود با اثر انگشت',
         notificationsSection: '🔔 نوتیفیکیشن',
@@ -3218,6 +3249,7 @@ const translations = {
         themeOcean: 'Ocean',
         themeForest: 'Forest',
         themePurple: 'Purple',
+        themeBlack: 'Black',
         securitySection: '🔐 Security',
         bioLoginTitle: '👆 Fingerprint Login',
         notificationsSection: '🔔 Notifications',
@@ -3885,6 +3917,7 @@ function updateUI() {
     document.getElementById('themeOceanName').textContent = L.themeOcean;
     document.getElementById('themeForestName').textContent = L.themeForest;
     document.getElementById('themePurpleName').textContent = L.themePurple;
+    document.getElementById('themeBlackName').textContent = L.themeBlack;
     document.getElementById('securitySectionLabel').textContent = L.securitySection;
     document.getElementById('bioLoginTitle').textContent = L.bioLoginTitle;
     document.getElementById('notificationsSectionLabel').textContent = L.notificationsSection;
@@ -4229,21 +4262,25 @@ async function loadAllNFTs() {
                     ]);
                     
                     if (balance.gt(0)) {
-    const totalBalance = balance.toNumber();
-    const pricePerNFT = CONFIG.getNFTPrice(contractInfo.address, id);
-    const finalName = (contractInfo.itemNames && contractInfo.itemNames[id]) ? contractInfo.itemNames[id] : (contractInfo.name + " #" + id);
-    
-    allNFTs.push({
-        id: id,
-        balance: totalBalance,
-        image: contractInfo.image,
-        contract: contractInfo.address,
-        contractName: contractInfo.name,
-        name: finalName,
-        pricePerNFT: pricePerNFT,
-        totalPrice: pricePerNFT * totalBalance
-    });
-}
+                        const totalBalance = balance.toNumber();
+                        const pricePerNFT = CONFIG.getNFTPrice(contractInfo.address, id);
+                        
+                        let finalName = contractInfo.name + " #" + id;
+                        if (contractInfo.itemNames && contractInfo.itemNames[id]) {
+                            finalName = contractInfo.itemNames[id];
+                        }
+                        
+                        allNFTs.push({
+                            id: id,
+                            balance: totalBalance,
+                            image: contractInfo.image,
+                            name: finalName,
+                            contract: contractInfo.address,
+                            contractName: contractInfo.name,
+                            pricePerNFT: pricePerNFT,
+                            totalPrice: pricePerNFT * totalBalance
+                        });
+                    }
                 } catch (e) {}
             }
         }
@@ -4251,7 +4288,7 @@ async function loadAllNFTs() {
         state.allNFTs = allNFTs;
         renderNFTs(allNFTs);
         
-        console.log(`✅ Loaded ${allNFTs.length} NFTs`);
+        console.log('✅ Loaded ' + allNFTs.length + ' NFTs');
     } catch (e) {
         console.error('Load NFTs error:', e);
     }
@@ -6762,6 +6799,9 @@ function mergeAvaCloudTransactions(avaxTxs, nftTxs) {
         );
         const collection = contractInfo?.name || 'Unknown Collection';
         const finalImage = image || contractInfo?.image || null;
+        const finalName = (contractInfo && contractInfo.itemNames && contractInfo.itemNames[tokenId]) 
+            ? contractInfo.itemNames[tokenId] 
+            : (nftName.includes('#') ? nftName : `${collection} #${tokenId}`);
         
         const txRecord = {
             hash: nftTx.txHash,
@@ -6772,7 +6812,7 @@ function mergeAvaCloudTransactions(avaxTxs, nftTxs) {
             contract: contractAddr,
             tokenId: tokenId,
             amount: amount,
-            nftName: nftName.includes('#') ? nftName : `${collection} #${tokenId}`,
+            nftName: finalName,
             image: finalImage,
             collection: collection,
             gasFee: null,
