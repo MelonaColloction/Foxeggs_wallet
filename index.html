@@ -7027,11 +7027,14 @@ async function loadFullTxHistory() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// INIT (Offline-First)
+// INIT (Offline-First + Biometric Auto-unlock)
 // ═══════════════════════════════════════════════════════════════
 async function init() {
     try {
-        // 1. اول اطلاعات رو از کش لود کن (بدون نیاز به شبکه)
+        // 1. اول اثر انگشت رو چک کن (که biometricAvailable ست بشه)
+        await checkBiometricSupport();
+        
+        // 2. اطلاعات رو از کش لود کن (بدون نیاز به شبکه)
         loadWallets();
         applyBalanceVisibility();
         updateUI();
@@ -7051,9 +7054,8 @@ async function init() {
             renderTxHistory();
             loadFavorites();
             
-            // 👇 بار اول رمز یا اثر انگشت رو چک کن
+            // 👇 اگه کاربر قبلا اثر انگشت رو فعال کرده باشه، خودکار باز کن
             if (Settings.getBiometricEnabled() && biometricAvailable) {
-                // اگه اثر انگشت فعاله، خودکار با اثر انگشت باز کن
                 status(t('waitingFingerprint'), 'info');
                 updateWalletDropdown();
                 document.getElementById('loginModal').classList.add('closed');
@@ -7061,9 +7063,10 @@ async function init() {
                 setTimeout(async () => {
                     const success = await tryBiometricUnlock();
                     if (!success) {
+                        // اگه اثر انگشت کار نکرد، رمز بپرس
                         showUnlockModal();
                     }
-                }, 300);
+                }, 500);
             } else {
                 // اگه اثر انگشت فعال نیست، رمز بپرس
                 showUnlockModal();
@@ -7079,19 +7082,17 @@ async function init() {
             updateWalletDropdown();
         }
         
-        // 2. حالا در پس‌زمینه تلاش کن به شبکه وصل بشی
+        // 3. حالا در پس‌زمینه تلاش کن به شبکه وصل بشی
         status(t('connecting'), 'info');
         
         if (typeof window.NFT_PRICES === 'undefined') {
             console.warn('⚠️ price.js not loaded');
         }
         
-        await checkBiometricSupport();
         await NativeNotifications.createChannels();
         await NativeNotifications.requestPermission();
         await NativeNotifications.checkPermission();
         
-        // تلاش برای اتصال به RPC
         const provider = await findBestRPC();
         
         if (!provider) {
@@ -7100,17 +7101,14 @@ async function init() {
             return;
         }
         
-        // اگه شبکه وصل شد، آپدیت کن
         state.provider = provider;
         startPriceUpdater();
         
-        // اگه کاربر لاگین بود، اطلاعات رو آپدیت کن
         if (state.unlocked && state.address) {
             await refreshAll(true);
             await loadFullTxHistory();
             restoreConnectedStatus();
             
-            // شروع تایمر آپدیت خودکار (هر ۱۶ ثانیه)
             setInterval(() => {
                 if (!document.hidden && state.unlocked && state.address && state.provider) {
                     checkAvaCloudUpdates();
