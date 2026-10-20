@@ -4587,18 +4587,31 @@ function renderTxItem(tx, index) {
         amountHtml = `<div class="tx-sub ${isIncoming ? 'amount-in' : 'amount-out'}">${amountStr}</div>`;
         
     } else if (tx.type === 'nft') {
-        if (tx.image) {
-            iconHtml = `<img src="${tx.image}" class="tx-image" onerror="this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`;
-        } else {
-            iconHtml = `<div class="tx-image placeholder">🎨</div>`;
+    // 👇 چک میکنیم که آیا این NFT در لیست لوکال (state.allNFTs) هست یا نه
+    let displayImage = tx.image;
+    if (tx.contract && tx.tokenId !== undefined) {
+        const localNft = state.allNFTs.find(n => 
+            n.contract.toLowerCase() === tx.contract.toLowerCase() && 
+            String(n.id) === String(tx.tokenId)
+        );
+        // اگر توی لیست لوکال بود، از عکس لوکال استفاده کن
+        if (localNft && localNft.image) {
+            displayImage = localNft.image;
         }
-        
-        titleHtml = isIncoming ? t('typeReceiveNFT') : t('typeSendNFT');
-        
-        const nftInfo = tx.nftName || `NFT #${tx.tokenId}`;
-        amountHtml = `<div class="tx-sub">${nftInfo} × ${tx.amount || 1}</div>`;
-        
-    } else if (tx.type === 'swap') {
+    }
+
+    if (displayImage) {
+        iconHtml = `<img src="${displayImage}" class="tx-image" onerror="this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`;
+    } else {
+        iconHtml = `<div class="tx-image placeholder">🎨</div>`;
+    }
+    
+    titleHtml = isIncoming ? t('typeReceiveNFT') : t('typeSendNFT');
+    
+    const nftInfo = tx.nftName || `NFT #${tx.tokenId}`;
+    amountHtml = `<div class="tx-sub">${nftInfo} × ${tx.amount || 1}</div>`;
+    
+} else if (tx.type === 'swap') {
         iconHtml = '🔄';
         titleHtml = t('typeSwap');
         amountHtml = `<div class="tx-sub">${formatAmount(tx.fromAmount)} ${tx.fromSymbol} → ${formatAmount(tx.toAmount)} ${tx.toSymbol}</div>`;
