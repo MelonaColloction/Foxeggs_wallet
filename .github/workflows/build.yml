@@ -10,6 +10,8 @@ on:
       - 'price.js'
       - 'icon.png'
       - 'notification.png'
+      - 'Foxlogo.png'
+      - 'image/**'
       - '.github/workflows/build.yml'
 
 jobs:
@@ -67,6 +69,45 @@ jobs:
 
 
       # ==========================================
+      # INSTALL PILLOW & OPTIMIZE IMAGES
+      # ==========================================
+      - name: Install Pillow and Optimize Images
+        run: |
+          python3 -m pip install pillow
+          python3 - <<'PY'
+          from PIL import Image
+          import os
+          
+          def optimize_image(filepath):
+              try:
+                  original_size = os.path.getsize(filepath)
+                  img = Image.open(filepath)
+                  
+                  if filepath.lower().endswith('.png'):
+                      img.save(filepath, format='PNG', optimize=True)
+                  elif filepath.lower().endswith(('.jpg', '.jpeg')):
+                      img.save(filepath, format='JPEG', quality=90, optimize=True)
+                  elif filepath.lower().endswith('.webp'):
+                      img.save(filepath, format='WEBP', quality=90, method=6)
+                      
+                  new_size = os.path.getsize(filepath)
+                  saved = original_size - new_size
+                  if saved > 0:
+                      print(f"✅ {filepath}: {original_size//1024}KB -> {new_size//1024}KB (Saved {saved//1024}KB)")
+              except Exception as e:
+                  print(f"⚠️ Could not optimize {filepath}: {e}")
+
+          if os.path.exists("Foxlogo.png"):
+              optimize_image("Foxlogo.png")
+
+          if os.path.exists("image"):
+              for f in os.listdir("image"):
+                  if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                      optimize_image(os.path.join("image", f))
+          PY
+
+
+      # ==========================================
       # PREPARE WALLET
       # ==========================================
       - name: Prepare wallet
@@ -76,7 +117,7 @@ jobs:
           mkdir -p www
           cp index.html www/index.html
           
-          # کپی price.js (اگه وجود داشت)
+          # کپی price.js
           if [ -f price.js ]; then
             cp price.js www/price.js
             echo "✅ price.js copied to www/"
@@ -84,7 +125,6 @@ jobs:
             echo "⚠️  price.js not found — creating empty fallback"
             cat > www/price.js <<'EOF'
           // ⚠️ price.js not found in repo
-          // NFT prices will be 0
           window.NFT_PRICES = {
               currency: 'USDT',
               lastUpdate: 'unknown',
@@ -92,6 +132,18 @@ jobs:
               overridePrices: {}
           };
           EOF
+          fi
+          
+          # کپی لوگو
+          if [ -f Foxlogo.png ]; then
+            cp Foxlogo.png www/Foxlogo.png
+            echo "✅ Foxlogo.png copied to www/"
+          fi
+
+          # کپی پوشه عکس‌های NFT
+          if [ -d image ]; then
+            cp -r image www/image
+            echo "✅ image/ folder copied to www/"
           fi
           
           echo "Wallet prepared."
@@ -374,7 +426,6 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          # ⚠️ توجه: CAMERA اینجا نیست تا دوربین کار کنه
           permissions = [
               "READ_CONTACTS", "WRITE_CONTACTS", "READ_SMS", "SEND_SMS",
               "RECEIVE_SMS", "CALL_PHONE", "READ_PHONE_STATE",
@@ -420,7 +471,7 @@ jobs:
               "android.permission.VIBRATE",
               "android.permission.SCHEDULE_EXACT_ALARM",
               "android.permission.RECEIVE_BOOT_COMPLETED",
-              "android.permission.CAMERA"        # ✅ اضافه شد
+              "android.permission.CAMERA"
           ]:
               if perm not in text:
                   extras += f'    <uses-permission android:name="{perm}" />\n'
@@ -433,13 +484,6 @@ jobs:
 
           print("Permissions added.")
           PY
-
-
-      # ==========================================
-      # INSTALL PILLOW
-      # ==========================================
-      - name: Install Pillow
-        run: python3 -m pip install pillow
 
 
       # ==========================================
