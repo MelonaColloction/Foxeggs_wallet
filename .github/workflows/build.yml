@@ -89,22 +89,61 @@ jobs:
           EOF
           fi
 
-          # 👇 کپی کردن عکس‌ها به پوشه www (این بخش جدید اضافه شد)
-          if [ -f Fox123.png ]; then
-            cp Fox123.png www/Fox123.png
-            echo "✅ Fox123.png copied to www/"
-          fi
-          if [ -f notification.png ]; then
-            cp notification.png www/notification.png
-            echo "✅ notification.png copied to www/"
-          fi
-          if [ -d image ]; then
-            cp -r image www/image
-            echo "✅ image/ folder copied to www/"
-          fi
+          # کپی عکس‌ها
+          if [ -f Fox123.png ]; then cp Fox123.png www/Fox123.png; fi
+          if [ -f notification.png ]; then cp notification.png www/notification.png; fi
+          if [ -d image ]; then cp -r image www/image; fi
           
           echo "Wallet prepared."
           ls -la www/
+
+      # ==========================================
+      # OBFUSCATE & MINIFY CODE
+      # ==========================================
+      - name: Obfuscate and Minify
+        run: |
+          echo "🔒 Installing obfuscator..."
+          npm install -g javascript-obfuscator
+          npm install -g html-minifier-terser
+          
+          # ۱. فشرده‌سازی HTML
+          html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js false www/index.html -o www/index.html.min
+          mv www/index.html.min www/index.html
+          
+          # ۲. مبهم‌سازی JS داخل HTML
+          python3 - <<'PY'
+          import re
+          import os
+          import subprocess
+          
+          with open("www/index.html", "r", encoding="utf-8") as f:
+              html = f.read()
+          scripts = re.findall(r'<script>(.*?)</script>', html, re.DOTALL)
+          
+          for i, script in enumerate(scripts):
+              if len(script.strip()) < 100: continue
+              with open(f"temp_{i}.js", "w", encoding="utf-8") as f: f.write(script)
+              
+              subprocess.run([
+                  "javascript-obfuscator", f"temp_{i}.js", "--output", f"temp_{i}_obs.js",
+                  "--compact", "true", "--control-flow-flattening", "true",
+                  "--identifier-names-generator", "hexadecimal", "--string-array", "true",
+                  "--self-defending", "true"
+              ], capture_output=True)
+              
+              if os.path.exists(f"temp_{i}_obs.js"):
+                  with open(f"temp_{i}_obs.js", "r", encoding="utf-8") as f: obs = f.read()
+                  html = html.replace(script, obs, 1)
+              os.remove(f"temp_{i}.js")
+              if os.path.exists(f"temp_{i}_obs.js"): os.remove(f"temp_{i}_obs.js")
+              
+          with open("www/index.html", "w", encoding="utf-8") as f: f.write(html)
+          PY
+          
+          # ۳. مبهم‌سازی price.js
+          if [ -f www/price.js ]; then
+            javascript-obfuscator www/price.js --output www/price.js --compact true --control-flow-flattening true --identifier-names-generator hexadecimal --string-array true
+          fi
 
       # ==========================================
       # CREATE PACKAGE.JSON
@@ -132,8 +171,7 @@ jobs:
       # INSTALL DEPENDENCIES
       # ==========================================
       - name: Install dependencies
-        run: |
-          npm install
+        run: npm install
 
       # ==========================================
       # CREATE CAPACITOR CONFIG
@@ -152,8 +190,7 @@ jobs:
       # ADD ANDROID
       # ==========================================
       - name: Add Android
-        run: |
-          npx cap add android
+        run: npx cap add android
 
       # ==========================================
       # ENABLE IMMERSIVE FULLSCREEN
@@ -178,10 +215,7 @@ jobs:
           with open(main_activity, "r", encoding="utf-8") as f:
               original = f.read()
 
-          package_match = re.search(
-              r'^\s*package\s+([^;]+);',
-              original, re.MULTILINE
-          )
+          package_match = re.search(r'^\s*package\s+([^;]+);', original, re.MULTILINE)
 
           if not package_match:
               raise SystemExit("Package name not found.")
@@ -229,8 +263,7 @@ jobs:
       # SYNC ANDROID
       # ==========================================
       - name: Sync Android
-        run: |
-          npx cap sync android
+        run: npx cap sync android
 
       # ==========================================
       # VERSION
@@ -597,7 +630,7 @@ jobs:
           ls -la www/
 
       # ==========================================
-      # BUILD APK
+      # BUILD APK (فقط APK)
       # ==========================================
       - name: Build Release APK
         working-directory: android
@@ -607,21 +640,17 @@ jobs:
           ./gradlew assembleRelease --no-daemon
 
       # ==========================================
-      # BUILD AAB
-      # ==========================================
-      - name: Build Release AAB
-        working-directory: android
-        run: ./gradlew bundleRelease --no-daemon
-
-      # ==========================================
       # PREPARE RELEASE
       # ==========================================
       - name: Prepare release
         run: |
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk release/FoxEggs-Wallet.apk
-          cp android/app/build/outputs/bundle/release/app-release.aab release/FoxEggs-Wallet.aab
-          echo "Release prepared."
+          
+          echo ""
+          echo "📦 حجم نهایی APK:"
+          du -h release/FoxEggs-Wallet.apk
+          echo "✅ Release prepared."
 
       # ==========================================
       # UPLOAD
