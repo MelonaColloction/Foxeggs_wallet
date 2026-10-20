@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
     <script src="price.js"></script>
     <style>
 :root {
@@ -2924,7 +2925,25 @@ const CONFIG = {
         return 0;
     }
 };
+const nftImageDB = localforage.createInstance({ name: "FoxEggsApp", storeName: "nft_images" });
 
+async function saveNFTImageToIndexedDB(contract, tokenId, imageUrl) {
+    try {
+        const key = `img_${contract}_${tokenId}`;
+        if (await nftImageDB.getItem(key)) return true;
+        const res = await fetch(imageUrl);
+        if (!res.ok) return false;
+        await nftImageDB.setItem(key, await res.blob());
+        return true;
+    } catch (e) { return false; }
+}
+
+async function getNFTImageFromIndexedDB(contract, tokenId) {
+    try {
+        const blob = await nftImageDB.getItem(`img_${contract}_${tokenId}`);
+        return blob ? URL.createObjectURL(blob) : null;
+    } catch (e) { return null; }
+}
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL STATE
 // ═══════════════════════════════════════════════════════════════
@@ -4331,6 +4350,11 @@ async function loadAllNFTs(forceFetch = false) {
         state.allNFTs = allNFTs;
         renderNFTs(allNFTs);
         localStorage.setItem(cacheKey, JSON.stringify(allNFTs));
+        for (const nft of allNFTs) {
+    if (nft.image && nft.image.startsWith('http')) {
+        await saveNFTImageToIndexedDB(nft.contract, nft.id, nft.image);
+    }
+}
         
         console.log('✅ Loaded ' + allNFTs.length + ' NFTs from RPC');
     } catch (e) {
@@ -4549,7 +4573,7 @@ function addTxToHistory(tx) {
     saveTxToCache();
 }
 
-function renderTxHistory() {
+async function renderTxHistory() {
     const container = document.getElementById('txHistory');
     if (!container) return;
     
@@ -4561,14 +4585,14 @@ function renderTxHistory() {
     const displayItems = state.txHistory.slice(0, 3);
     
     let html = '<div class="tx-list">';
-    displayItems.forEach((tx, index) => {
-        html += renderTxItem(tx, index);
-    });
+    for (const tx of displayItems) {
+        html += await renderTxItem(tx, 0);
+    }
     html += '</div>';
     container.innerHTML = html;
 }
 
-function renderTxItem(tx, index) {
+async function renderTxItem(tx, index) {
     const isIncoming = tx.direction === 'in';
     const directionClass = isIncoming ? 'incoming' : 'outgoing';
     
@@ -4579,39 +4603,25 @@ function renderTxItem(tx, index) {
     if (tx.type === 'avax') {
         iconHtml = isIncoming ? '📥' : '📤';
         titleHtml = isIncoming ? t('typeReceiveAVAX') : t('typeSendAVAX');
-        
-        const amountStr = isIncoming 
-            ? `+${formatAmount(tx.value)} AVAX`
-            : `-${formatAmount(tx.value)} AVAX`;
-        
+        const amountStr = isIncoming ? `+${formatAmount(tx.value)} AVAX` : `-${formatAmount(tx.value)} AVAX`;
         amountHtml = `<div class="tx-sub ${isIncoming ? 'amount-in' : 'amount-out'}">${amountStr}</div>`;
-        
     } else if (tx.type === 'nft') {
-    // 👇 چک میکنیم که آیا این NFT در لیست لوکال (state.allNFTs) هست یا نه
-    let displayImage = tx.image;
-    if (tx.contract && tx.tokenId !== undefined) {
-        const localNft = state.allNFTs.find(n => 
-            n.contract.toLowerCase() === tx.contract.toLowerCase() && 
-            String(n.id) === String(tx.tokenId)
-        );
-        // اگر توی لیست لوکال بود، از عکس لوکال استفاده کن
-        if (localNft && localNft.image) {
-            displayImage = localNft.image;
+        let displayImage = null;
+        if (tx.contract && tx.tokenId !== undefined) {
+            displayImage = await getNFTImageFromIndexedDB(tx.contract, tx.tokenId);
         }
-    }
-
-    if (displayImage) {
-        iconHtml = `<img src="${displayImage}" class="tx-image" onerror="this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`;
-    } else {
-        iconHtml = `<div class="tx-image placeholder">🎨</div>`;
-    }
-    
-    titleHtml = isIncoming ? t('typeReceiveNFT') : t('typeSendNFT');
-    
-    const nftInfo = tx.nftName || `NFT #${tx.tokenId}`;
-    amountHtml = `<div class="tx-sub">${nftInfo} × ${tx.amount || 1}</div>`;
-    
-} else if (tx.type === 'swap') {
+        if (!displayImage && tx.image) {
+            displayImage = tx.image;
+        }
+        if (displayImage) {
+            iconHtml = `<img src="${displayImage}" class="tx-image" onerror="this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`;
+        } else {
+            iconHtml = `<div class="tx-image placeholder">🎨</div>`;
+        }
+        titleHtml = isIncoming ? t('typeReceiveNFT') : t('typeSendNFT');
+        const nftInfo = tx.nftName || `NFT #${tx.tokenId}`;
+        amountHtml = `<div class="tx-sub">${nftInfo} × ${tx.amount || 1}</div>`;
+    } else if (tx.type === 'swap') {
         iconHtml = '🔄';
         titleHtml = t('typeSwap');
         amountHtml = `<div class="tx-sub">${formatAmount(tx.fromAmount)} ${tx.fromSymbol} → ${formatAmount(tx.toAmount)} ${tx.toSymbol}</div>`;
@@ -4631,7 +4641,7 @@ function renderTxItem(tx, index) {
     `;
 }
 
-function showAllTxHistory() {
+async function showAllTxHistory() {
     const modal = document.getElementById('allTxModal');
     const body = document.getElementById('allTxBody');
     
@@ -4639,9 +4649,9 @@ function showAllTxHistory() {
         body.innerHTML = `<div class="empty-state">${t('noTx')}</div>`;
     } else {
         let html = '<div class="tx-list">';
-        state.txHistory.forEach((tx, index) => {
-            html += renderTxItem(tx, index);
-        });
+        for (let index = 0; index < state.txHistory.length; index++) {
+            html += await renderTxItem(state.txHistory[index], index);
+        }
         html += '</div>';
         body.innerHTML = html;
     }
