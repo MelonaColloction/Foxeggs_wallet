@@ -1785,6 +1785,7 @@ body {
 #settingsModal { z-index: 1100 !important; }
 #confirmTxModal { z-index: 1300 !important; }
 #successModal { z-index: 1400 !important; }
+#passwordPromptModal { z-index: 1500 !important; }
     </style>
 </head>
 <body>
@@ -2290,17 +2291,13 @@ body {
                 <div class="warning-box" id="addCreateWarning">⚠️ این ۱۲ کلمه را در جای امن یادداشت کنید!</div>
                 <div class="seed-display" id="addNewSeed">برای تولید کلیک کنید</div>
                 <button class="btn btn-secondary btn-full" onclick="generateAddSeed()" id="addGenBtn">🔄 تولید کلمات</button>
-                <div class="input-group"><input type="password" id="addCreatePass" placeholder="رمز عبور (حداقل ۶ کاراکتر)" /></div>
-                <div class="input-group"><input type="password" id="addCreatePass2" placeholder="تکرار رمز عبور" /></div>
-                <button class="btn btn-success btn-full" onclick="addCreateWallet()" id="addSubmitBtn">✅ افزودن کیف پول</button>
+                <button class="btn btn-success btn-full" onclick="addCreateWallet()" id="addSubmitBtn" style="margin-top: 12px;">✅ افزودن کیف پول</button>
                 <button class="btn btn-outline btn-full" onclick="backToAddWalletOptions()" style="margin-top:6px;" id="addBackBtn">🔙 بازگشت</button>
             </div>
             <div id="addImportSection" class="hidden">
                 <div class="warning-box" id="addImportWarning">⚠️ ۱۲ کلمه کیف پول خود را وارد کنید</div>
                 <div class="input-group"><textarea id="addImportSeed" placeholder="۱۲ کلمه را وارد کنید..."></textarea></div>
-                <div class="input-group"><input type="password" id="addImportPass" placeholder="رمز عبور جدید (حداقل ۶ کاراکتر)" /></div>
-                <div class="input-group"><input type="password" id="addImportPass2" placeholder="تکرار رمز عبور" /></div>
-                <button class="btn btn-success btn-full" onclick="addImportWallet()" id="addImportSubmitBtn">✅ وارد کردن</button>
+                <button class="btn btn-success btn-full" onclick="addImportWallet()" id="addImportSubmitBtn" style="margin-top: 12px;">✅ وارد کردن</button>
                 <button class="btn btn-outline btn-full" onclick="backToAddWalletOptions()" style="margin-top:6px;" id="addImportBackBtn">🔙 بازگشت</button>
             </div>
         </div>
@@ -2340,6 +2337,25 @@ body {
                     👆 ورود با اثر انگشت
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- PASSWORD PROMPT MODAL (برای کیف پول‌های بعدی) -->
+    <div class="modal-overlay closed" id="passwordPromptModal">
+        <div class="modal">
+            <h2 style="color:var(--accent-warning);">🔐 تأیید هویت</h2>
+            <div class="desc">برای افزودن کیف پول جدید، هویت خود را تأیید کنید</div>
+            
+            <div class="input-group">
+                <input type="password" id="promptPasswordInput" placeholder="رمز اصلی خود را وارد کنید" />
+            </div>
+            
+            <button class="btn btn-success btn-full" onclick="submitPromptPassword()" style="margin-top:12px;">
+                ✅ تأیید
+            </button>
+            <button class="btn btn-outline btn-full" onclick="closePasswordPrompt()" style="margin-top:6px;">
+                ❌ لغو
+            </button>
         </div>
     </div>
 
@@ -3434,7 +3450,7 @@ function status(msg, type = 'info') {
 }
 
 function restoreConnectedStatus() {
-    if (state.unlocked && state.address) {
+    if (state.unlocked && state.address && state.provider) {
         status(t('connected'), 'success');
     }
 }
@@ -3701,10 +3717,8 @@ function updateUSDDisplay() {
 }
 
 function startPriceUpdater() {
-    // فقط یه بار قیمت بگیر
     updateAVAXPrice();
     
-    // interval رو حذف کن
     if (state.priceUpdateInterval) {
         clearInterval(state.priceUpdateInterval);
         state.priceUpdateInterval = null;
@@ -3945,13 +3959,9 @@ function updateUI() {
     document.getElementById('addImportWarning').textContent = L.importWarning;
     document.getElementById('addNewSeed').textContent = L.generateClick;
     document.getElementById('addGenBtn').textContent = L.generate;
-    document.getElementById('addCreatePass').placeholder = L.passwordFull;
-    document.getElementById('addCreatePass2').placeholder = L.repeatPassword;
     document.getElementById('addSubmitBtn').textContent = L.addWalletToStorage;
     document.getElementById('addBackBtn').textContent = L.back;
     document.getElementById('addImportSeed').placeholder = L.seedPlaceholder;
-    document.getElementById('addImportPass').placeholder = L.passwordFull;
-    document.getElementById('addImportPass2').placeholder = L.repeatPassword;
     document.getElementById('addImportSubmitBtn').textContent = L.addWalletImport;
     document.getElementById('addImportBackBtn').textContent = L.back;
     
@@ -4183,7 +4193,7 @@ async function switchWallet(index) {
             loadTxHistoryFromCache();
             renderTxHistory();
             loadFavorites();
-            refreshAll();
+            await refreshAll(false);
             return;
         }
     } catch (e) {}
@@ -4261,6 +4271,19 @@ async function loadAllNFTs(forceFetch = false) {
                 return;
             } catch (e) {}
         }
+    }
+    
+    if (!state.provider) {
+        // اگه شبکه نبود، فقط کش رو نشون بده
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                state.allNFTs = parsed;
+                renderNFTs(parsed);
+            } catch (e) {}
+        }
+        return;
     }
     
     try {
@@ -6132,7 +6155,7 @@ function closeSuccessModal() {
 // REFRESH & CACHING SYSTEM
 // ═══════════════════════════════════════════════════════════════
 async function refreshBalance(forceFetch = false) {
-    if (!state.address || !state.provider) return;
+    if (!state.address) return;
     
     const cacheKey = 'foxCachedBalance_' + state.address.toLowerCase();
     
@@ -6146,6 +6169,19 @@ async function refreshBalance(forceFetch = false) {
             updateUSDDisplay();
             return balanceAvax;
         }
+    }
+    
+    if (!state.provider) {
+        // اگه شبکه نبود، فقط کش رو نشون بده
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const balanceAvax = parseFloat(cached);
+            state.lastAvaxBalance = balanceAvax;
+            document.getElementById('avaxBalance').textContent = balanceAvax.toFixed(4);
+            updateTokenBalanceInfo();
+            updateUSDDisplay();
+        }
+        return;
     }
     
     try {
@@ -6500,6 +6536,36 @@ async function tryBiometricUnlock() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// PASSWORD PROMPT MODAL
+// ═══════════════════════════════════════════════════════════════
+let passwordPromptResolve = null;
+
+function showPasswordPrompt() {
+    return new Promise((resolve) => {
+        passwordPromptResolve = resolve;
+        document.getElementById('promptPasswordInput').value = '';
+        document.getElementById('passwordPromptModal').classList.remove('closed');
+    });
+}
+
+function submitPromptPassword() {
+    const pass = document.getElementById('promptPasswordInput').value;
+    document.getElementById('passwordPromptModal').classList.add('closed');
+    if (passwordPromptResolve) {
+        passwordPromptResolve(pass);
+        passwordPromptResolve = null;
+    }
+}
+
+function closePasswordPrompt() {
+    document.getElementById('passwordPromptModal').classList.add('closed');
+    if (passwordPromptResolve) {
+        passwordPromptResolve(null);
+        passwordPromptResolve = null;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // ADD WALLET MODAL
 // ═══════════════════════════════════════════════════════════════
 function showAddWallet() {
@@ -6510,11 +6576,7 @@ function showAddWallet() {
     document.getElementById('addImportSection').classList.add('hidden');
     document.getElementById('addNewSeed').textContent = t('generateClick');
     addNewMnemonic = '';
-    document.getElementById('addCreatePass').value = '';
-    document.getElementById('addCreatePass2').value = '';
     document.getElementById('addImportSeed').value = '';
-    document.getElementById('addImportPass').value = '';
-    document.getElementById('addImportPass2').value = '';
 }
 
 function closeAddWalletModal() { 
@@ -6550,13 +6612,42 @@ function generateAddSeed() {
     }
 }
 
-async function addCreateWallet() {
-    const pass = document.getElementById('addCreatePass').value;
-    const pass2 = document.getElementById('addCreatePass2').value;
+async function verifyIdentityForNewWallet() {
+    // اگه رمز اصلی هنوز ست نشده (اولین بار)
+    if (!state.currentPassword) {
+        // از کاربر رمز جدید بگیر
+        const pass = await showPasswordPrompt();
+        if (!pass || pass.length < 6) {
+            toast(t('passMin'), 'error');
+            return null;
+        }
+        state.currentPassword = pass;
+        return pass;
+    }
     
+    // اگه رمز اصلی هست، تایید هویت بگیر
+    if (Settings.getBiometricEnabled() && biometricAvailable) {
+        const verify = await BiometricAuth.verify(t('bioTxPrompt'));
+        if (!verify.success) {
+            showNotification('error', '❌', t('bioFailed'));
+            return null;
+        }
+        return state.currentPassword;
+    } else {
+        const pass = await showPasswordPrompt();
+        if (pass !== state.currentPassword) {
+            showNotification('error', '❌', t('passWrong'));
+            return null;
+        }
+        return state.currentPassword;
+    }
+}
+
+async function addCreateWallet() {
     if (!addNewMnemonic) { toast(t('generateFirst'), 'error'); return; }
-    if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
-    if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
+    
+    const pass = await verifyIdentityForNewWallet();
+    if (!pass) return;
     
     try {
         const wallet = ethers.Wallet.fromMnemonic(addNewMnemonic);
@@ -6565,7 +6656,6 @@ async function addCreateWallet() {
         
         if (addWalletToStorage(addr, enc)) {
             state.signer = wallet.connect(state.provider);
-            state.currentPassword = pass;
             state.unlocked = true;
             
             document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
@@ -6585,12 +6675,10 @@ async function addCreateWallet() {
 
 async function addImportWallet() {
     const seed = document.getElementById('addImportSeed').value.trim();
-    const pass = document.getElementById('addImportPass').value;
-    const pass2 = document.getElementById('addImportPass2').value;
-    
     if (!seed) { toast(t('seedPlaceholder'), 'error'); return; }
-    if (pass.length < 6) { toast(t('passMin'), 'error'); return; }
-    if (pass !== pass2) { toast(t('passMatch'), 'error'); return; }
+    
+    const pass = await verifyIdentityForNewWallet();
+    if (!pass) return;
     
     try {
         const wallet = ethers.Wallet.fromMnemonic(seed);
@@ -6599,7 +6687,6 @@ async function addImportWallet() {
         
         if (addWalletToStorage(addr, enc)) {
             state.signer = wallet.connect(state.provider);
-            state.currentPassword = pass;
             state.unlocked = true;
             
             document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(addr);
@@ -6942,41 +7029,14 @@ async function loadFullTxHistory() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// INIT
+// INIT (Offline-First)
 // ═══════════════════════════════════════════════════════════════
 async function init() {
     try {
-        status(t('connecting'), 'info');
-        
-        // چک price.js
-        if (typeof window.NFT_PRICES === 'undefined') {
-            console.warn('⚠️ price.js not loaded — NFT prices will be 0');
-        } else {
-            console.log('✅ price.js loaded:', window.NFT_PRICES);
-        }
-        
-        // چک QR libraries
-        console.log('QRCode type:', typeof QRCode);
-        console.log('Html5Qrcode type:', typeof Html5Qrcode);
-        
-        await checkBiometricSupport();
-        
-        await NativeNotifications.createChannels();
-        await NativeNotifications.requestPermission();
-        await NativeNotifications.checkPermission();
-        
-        const provider = await findBestRPC();
-        if (!provider) {
-            status(t('networkError'), 'error');
-            showNotification('error', '❌', t('networkError'));
-            return;
-        }
-        state.provider = provider;
-        
-        startPriceUpdater();
-        applyBalanceVisibility();
-        
+        // 1. اول اطلاعات رو از کش لود کن تا کاربر فوراً ببینه (بدون نیاز به شبکه)
         loadWallets();
+        applyBalanceVisibility();
+        updateUI();
         
         if (state.wallets.length > 0) {
             if (state.activeWalletIndex === -1 || state.activeWalletIndex >= state.wallets.length) {
@@ -6988,10 +7048,12 @@ async function init() {
             state.encryptedSeed = wallet.encryptedSeed;
             document.getElementById('addressDisplay').textContent = '📋 ' + shortAddr(wallet.address);
             
+            // لود کردن از کش
             loadTxHistoryFromCache();
             renderTxHistory();
             loadFavorites();
             
+            // نشون دادن وضعیت اولیه
             if (Settings.getBiometricEnabled() && biometricAvailable) {
                 status(t('waitingFingerprint'), 'info');
                 updateWalletDropdown();
@@ -7003,25 +7065,64 @@ async function init() {
                         showUnlockModal();
                     }
                 }, 300);
-                return;
+            } else {
+                showUnlockModal();
+                updateWalletDropdown();
             }
-            
-            showUnlockModal();
+        } else {
+            document.getElementById('loginModal').classList.remove('closed');
+            document.getElementById('loginOptions').classList.remove('hidden');
+            document.getElementById('unlockSection').classList.add('hidden');
+            document.getElementById('createSection').classList.add('hidden');
+            document.getElementById('importSection').classList.add('hidden');
+            status(t('welcome'), 'success');
             updateWalletDropdown();
+        }
+        
+        // 2. حالا در پس‌زمینه تلاش کن به شبکه وصل بشی
+        status(t('connecting'), 'info');
+        
+        // چک price.js
+        if (typeof window.NFT_PRICES === 'undefined') {
+            console.warn('⚠️ price.js not loaded');
+        }
+        
+        await checkBiometricSupport();
+        await NativeNotifications.createChannels();
+        await NativeNotifications.requestPermission();
+        await NativeNotifications.checkPermission();
+        
+        // تلاش برای اتصال به RPC
+        const provider = await findBestRPC();
+        
+        if (!provider) {
+            // اگه شبکه نبود، فقط بگو آفلاین هستی
+            status('⚠️ حالت آفلاین - اطلاعات ذخیره‌شده', 'info');
+            showNotification('info', '📡 آفلاین', 'اتصال به شبکه برقرار نیست. اطلاعات قبلی نمایش داده می‌شود.');
             return;
         }
         
-        document.getElementById('loginModal').classList.remove('closed');
-        document.getElementById('loginOptions').classList.remove('hidden');
-        document.getElementById('unlockSection').classList.add('hidden');
-        document.getElementById('createSection').classList.add('hidden');
-        document.getElementById('importSection').classList.add('hidden');
-        status(t('welcome'), 'success');
-        updateWalletDropdown();
+        // اگه شبکه وصل شد، آپدیت کن
+        state.provider = provider;
+        startPriceUpdater();
+        
+        // اگه کاربر لاگین بود، اطلاعات رو آپدیت کن
+        if (state.unlocked && state.address) {
+            await refreshAll(true);
+            await loadFullTxHistory();
+            restoreConnectedStatus();
+            
+            // شروع تایمر آپدیت خودکار (هر ۱۶ ثانیه)
+            setInterval(() => {
+                if (!document.hidden && state.unlocked && state.address && state.provider) {
+                    checkAvaCloudUpdates();
+                }
+            }, 16000);
+        }
         
     } catch (e) {
         console.error('Init error:', e);
-        status('❌ ' + e.message, 'error');
+        status('⚠️ خطا در بروزرسانی، اطلاعات قبلی نمایش داده می‌شود', 'error');
     }
 }
 
@@ -7052,23 +7153,7 @@ window.addEventListener('beforeunload', function() {
         try { state.qrScanner.stop(); } catch(e) {}
     }
 });
-
-// ═══════════════════════════════════════════════════════════════
-// AUTO SYNC TIMER (هر ۱۶ ثانیه فقط وقتی کاربر توی اپه)
-// ═══════════════════════════════════════════════════════════════
-setInterval(() => {
-    if (!document.hidden && state.unlocked && state.address) {
-        checkAvaCloudUpdates();
-    }
-}, 16000);
-
-// وقتی کاربر برگشت به اپ، سریع آپدیت کن
-document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && state.unlocked && state.address) {
-        checkAvaCloudUpdates();
-    }
-});
 </script>
 
 </body>
-    </html>
+                    </html>
