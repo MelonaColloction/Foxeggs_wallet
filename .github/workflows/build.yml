@@ -10,7 +10,7 @@ on:
       - 'price.js'
       - 'icon.png'
       - 'notification.png'
-      - 'Foxlogo.png'
+      - 'Fox123.png'
       - 'image/**'
       - '.github/workflows/build.yml'
 
