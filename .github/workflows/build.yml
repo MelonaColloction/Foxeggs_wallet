@@ -69,45 +69,6 @@ jobs:
 
 
       # ==========================================
-      # INSTALL PILLOW & OPTIMIZE IMAGES
-      # ==========================================
-      - name: Install Pillow and Optimize Images
-        run: |
-          python3 -m pip install pillow
-          python3 - <<'PY'
-          from PIL import Image
-          import os
-          
-          def optimize_image(filepath):
-              try:
-                  original_size = os.path.getsize(filepath)
-                  img = Image.open(filepath)
-                  
-                  if filepath.lower().endswith('.png'):
-                      img.save(filepath, format='PNG', optimize=True)
-                  elif filepath.lower().endswith(('.jpg', '.jpeg')):
-                      img.save(filepath, format='JPEG', quality=90, optimize=True)
-                  elif filepath.lower().endswith('.webp'):
-                      img.save(filepath, format='WEBP', quality=90, method=6)
-                      
-                  new_size = os.path.getsize(filepath)
-                  saved = original_size - new_size
-                  if saved > 0:
-                      print(f"✅ {filepath}: {original_size//1024}KB -> {new_size//1024}KB (Saved {saved//1024}KB)")
-              except Exception as e:
-                  print(f"⚠️ Could not optimize {filepath}: {e}")
-
-          if os.path.exists("Foxlogo.png"):
-              optimize_image("Foxlogo.png")
-
-          if os.path.exists("image"):
-              for f in os.listdir("image"):
-                  if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
-                      optimize_image(os.path.join("image", f))
-          PY
-
-
-      # ==========================================
       # PREPARE WALLET
       # ==========================================
       - name: Prepare wallet
@@ -124,7 +85,6 @@ jobs:
           else
             echo "⚠️  price.js not found — creating empty fallback"
             cat > www/price.js <<'EOF'
-          // ⚠️ price.js not found in repo
           window.NFT_PRICES = {
               currency: 'USDT',
               lastUpdate: 'unknown',
@@ -140,10 +100,10 @@ jobs:
             echo "✅ Foxlogo.png copied to www/"
           fi
 
-          # کپی پوشه عکس‌های NFT
+          # کپی پوشه عکس‌های NFT (بدون هیچ تغییری در کیفیت)
           if [ -d image ]; then
             cp -r image www/image
-            echo "✅ image/ folder copied to www/"
+            echo "✅ image/ folder copied to www/ (original quality)"
           fi
           
           echo "Wallet prepared."
@@ -348,7 +308,7 @@ jobs:
 
 
       # ==========================================
-      # CONFIGURE ANDROID GRADLE
+      # CONFIGURE ANDROID GRADLE (کاهش حجم بدون افت کیفیت)
       # ==========================================
       - name: Configure Android Gradle
         run: |
@@ -395,6 +355,7 @@ jobs:
                   text, count=1, flags=re.S
               )
 
+          # 👇 کاهش حجم با حذف فایل‌های اضافی (بدون تغییر در عکس‌ها)
           if re.search(r'buildTypes\s*\{.*?release\s*\{', text, re.S):
               release_match = re.search(
                   r'(buildTypes\s*\{\s*release\s*\{)(.*?)(\n\s*\})',
@@ -402,16 +363,32 @@ jobs:
               )
               if release_match:
                   release_body = release_match.group(2)
-                  if "minifyEnabled" in release_body:
-                      release_body = re.sub(r'minifyEnabled\s+\w+', 'minifyEnabled false', release_body, count=1)
+                  
+                  if "shrinkResources" not in release_body:
+                      release_body = "\n            shrinkResources true" + release_body
                   else:
-                      release_body = "\n            minifyEnabled false" + release_body
+                      release_body = re.sub(r'shrinkResources\s+\w+', 'shrinkResources true', release_body, count=1)
+                      
+                  if "minifyEnabled" not in release_body:
+                      release_body = "\n            minifyEnabled true" + release_body
+                  else:
+                      release_body = re.sub(r'minifyEnabled\s+\w+', 'minifyEnabled true', release_body, count=1)
+                      
                   text = text[:release_match.start(2)] + release_body + text[release_match.end(2):]
+
+          # 👇 خط طلایی: جلوگیری از فشرده‌سازی عکس‌ها (حفظ کیفیت ۱۰۰٪)
+          if "androidResources {" not in text:
+              android_resources = '''
+              androidResources {
+                  noCompress 'png', 'jpg', 'jpeg', 'webp', 'gif'
+              }
+              '''
+              text = text.replace("buildTypes {", android_resources + "\n    buildTypes {", 1)
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
 
-          print("Android Gradle configured.")
+          print("Android Gradle configured: Size Reduced, Image Quality Preserved 100%.")
           PY
 
 
@@ -484,6 +461,13 @@ jobs:
 
           print("Permissions added.")
           PY
+
+
+      # ==========================================
+      # INSTALL PILLOW
+      # ==========================================
+      - name: Install Pillow
+        run: python3 -m pip install pillow
 
 
       # ==========================================
@@ -678,7 +662,11 @@ jobs:
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk release/FoxEggs-Wallet.apk
           cp android/app/build/outputs/bundle/release/app-release.aab release/FoxEggs-Wallet.aab
-          echo "Release prepared."
+          
+          echo ""
+          echo "📦 حجم نهایی APK:"
+          du -h release/FoxEggs-Wallet.apk
+          echo "✅ Release prepared."
 
 
       # ==========================================
