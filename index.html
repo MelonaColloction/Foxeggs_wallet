@@ -4274,7 +4274,6 @@ async function loadAllNFTs(forceFetch = false) {
     }
     
     if (!state.provider) {
-        // اگه شبکه نبود، فقط کش رو نشون بده
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             try {
@@ -6172,7 +6171,6 @@ async function refreshBalance(forceFetch = false) {
     }
     
     if (!state.provider) {
-        // اگه شبکه نبود، فقط کش رو نشون بده
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
             const balanceAvax = parseFloat(cached);
@@ -7033,7 +7031,7 @@ async function loadFullTxHistory() {
 // ═══════════════════════════════════════════════════════════════
 async function init() {
     try {
-        // 1. اول اطلاعات رو از کش لود کن تا کاربر فوراً ببینه (بدون نیاز به شبکه)
+        // 1. اول اطلاعات رو از کش لود کن (بدون نیاز به شبکه)
         loadWallets();
         applyBalanceVisibility();
         updateUI();
@@ -7053,8 +7051,9 @@ async function init() {
             renderTxHistory();
             loadFavorites();
             
-            // نشون دادن وضعیت اولیه
+            // 👇 بار اول رمز یا اثر انگشت رو چک کن
             if (Settings.getBiometricEnabled() && biometricAvailable) {
+                // اگه اثر انگشت فعاله، خودکار با اثر انگشت باز کن
                 status(t('waitingFingerprint'), 'info');
                 updateWalletDropdown();
                 document.getElementById('loginModal').classList.add('closed');
@@ -7066,6 +7065,7 @@ async function init() {
                     }
                 }, 300);
             } else {
+                // اگه اثر انگشت فعال نیست، رمز بپرس
                 showUnlockModal();
                 updateWalletDropdown();
             }
@@ -7082,7 +7082,6 @@ async function init() {
         // 2. حالا در پس‌زمینه تلاش کن به شبکه وصل بشی
         status(t('connecting'), 'info');
         
-        // چک price.js
         if (typeof window.NFT_PRICES === 'undefined') {
             console.warn('⚠️ price.js not loaded');
         }
@@ -7096,7 +7095,6 @@ async function init() {
         const provider = await findBestRPC();
         
         if (!provider) {
-            // اگه شبکه نبود، فقط بگو آفلاین هستی
             status('⚠️ حالت آفلاین - اطلاعات ذخیره‌شده', 'info');
             showNotification('info', '📡 آفلاین', 'اتصال به شبکه برقرار نیست. اطلاعات قبلی نمایش داده می‌شود.');
             return;
@@ -7156,4 +7154,4 @@ window.addEventListener('beforeunload', function() {
 </script>
 
 </body>
-                    </html>
+    </html>
