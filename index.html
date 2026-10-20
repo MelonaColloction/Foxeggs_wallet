@@ -2750,14 +2750,21 @@ const BiometricAuth = {
 // ═══════════════════════════════════════════════════════════════
 const CONFIG = {
     rpcList: [
-        'https://api.avax.network/ext/bc/C/rpc',
+        // 🚀 سریع‌ترین‌ها (بدون کلید و پرسرعت - اولویت اول)
         'https://avalanche-c-chain.publicnode.com',
-        'https://rpc.ankr.com/avalanche',
         'https://1rpc.io/avax/c',
-        'https://avalanche.drpc.org',
-        'https://avalanche-mainnet.public.blastapi.io/ext/bc/C/rpc',
+        'https://endpoints.omniatech.io/v1/avax/mainnet/public',
+        'https://avalanche.blockpi.network/v1/rpc/public',
+        'https://avax.meowrpc.com',
+        
+        // 🌐 سرور رسمی و پشتیبان‌های قدرتمند (اولویت دوم)
+        'https://api.avax.network/ext/bc/C/rpc',
         'https://avalanche-c-chain.public.blastapi.io',
-        'https://avalanche-c-chain-rpc.publicnode.com',
+        'https://avalanche-c-chain.public.blastapi.io/ext/bc/C/rpc',
+        'https://avalanche.drpc.org',
+        'https://rpc.ankr.com/avalanche',
+        
+        // 🔄 بقیه سرورهای پشتیبان (اولویت سوم - اگه بقیه قطع بودن)
         'https://avalanche.api.onfinality.io/public/ext/bc/C/rpc',
         'https://avalanche.lava.build',
         'https://avax-c-chain.nodeshub.online/ext/bc/C/rpc',
@@ -3390,7 +3397,7 @@ async function findBestRPC() {
             const result = await Promise.race([
                 provider.getNetwork(),
                 new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Timeout')), 5000)
+                    setTimeout(() => reject(new Error('Timeout')), 3000)
                 )
             ]);
             
@@ -4237,10 +4244,24 @@ async function copyAddress() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LOAD ALL NFTS (با قیمت)
+// LOAD ALL NFTS (با کش)
 // ═══════════════════════════════════════════════════════════════
-async function loadAllNFTs() {
+async function loadAllNFTs(forceFetch = false) {
     if (!state.address) return;
+    
+    const cacheKey = 'foxCachedNFTs_' + state.address.toLowerCase();
+    
+    if (!forceFetch) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            try {
+                const parsed = JSON.parse(cached);
+                state.allNFTs = parsed;
+                renderNFTs(parsed);
+                return;
+            } catch (e) {}
+        }
+    }
     
     try {
         let allNFTs = [];
@@ -4287,15 +4308,16 @@ async function loadAllNFTs() {
         
         state.allNFTs = allNFTs;
         renderNFTs(allNFTs);
+        localStorage.setItem(cacheKey, JSON.stringify(allNFTs));
         
-        console.log('✅ Loaded ' + allNFTs.length + ' NFTs');
+        console.log('✅ Loaded ' + allNFTs.length + ' NFTs from RPC');
     } catch (e) {
         console.error('Load NFTs error:', e);
     }
 }
 
 // ═══════════════════════════════════════════════════════════════
-// RENDER NFTS (با badge + قیمت)
+// RENDER NFTS
 // ═══════════════════════════════════════════════════════════════
 function renderNFTs(items) {
     const container = document.getElementById('nftList');
@@ -5498,7 +5520,7 @@ async function executeSwap(tx) {
         state.pendingTx = null;
         status(t('successSwapTitle'), 'success');
         
-        await refreshAll();
+        await refreshAll(true);
         
         setTimeout(restoreConnectedStatus, 3000);
         
@@ -5889,6 +5911,12 @@ async function executeSendToken(tx) {
         renderTxHistory();
         showSuccessModal(txRecord);
         
+        // 👇 کم کردن موجودی از کش
+        const cacheKey = 'foxCachedBalance_' + state.address.toLowerCase();
+        const currentBalance = parseFloat(localStorage.getItem(cacheKey) || state.lastAvaxBalance);
+        const newBalance = Math.max(0, currentBalance - tx.amount);
+        localStorage.setItem(cacheKey, newBalance.toString());
+        
         const notifTitle = currentLang === 'fa' ? '✅ ارسال موفق' : '✅ Sent';
         const notifBody = currentLang === 'fa'
             ? `${formatAmount(tx.amount)} AVAX به ${shortAddr(tx.to)} ارسال شد`
@@ -5902,7 +5930,7 @@ async function executeSendToken(tx) {
         closeSendModal();
         status(t('successTitle'), 'success');
         
-        await refreshAll();
+        await refreshAll(false); // از کش می‌خونه
         
         setTimeout(restoreConnectedStatus, 3000);
         
@@ -5980,7 +6008,7 @@ async function executeSendNFT(tx) {
         closeSendModal();
         status(t('successTitle'), 'success');
         
-        await refreshAll();
+        await refreshAll(true); // آپدیت از شبکه
         
         setTimeout(restoreConnectedStatus, 3000);
         
@@ -6101,15 +6129,30 @@ function closeSuccessModal() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// REFRESH
+// REFRESH & CACHING SYSTEM
 // ═══════════════════════════════════════════════════════════════
-async function refreshBalance() {
+async function refreshBalance(forceFetch = false) {
     if (!state.address || !state.provider) return;
+    
+    const cacheKey = 'foxCachedBalance_' + state.address.toLowerCase();
+    
+    if (!forceFetch) {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const balanceAvax = parseFloat(cached);
+            state.lastAvaxBalance = balanceAvax;
+            document.getElementById('avaxBalance').textContent = balanceAvax.toFixed(4);
+            updateTokenBalanceInfo();
+            updateUSDDisplay();
+            return balanceAvax;
+        }
+    }
+    
     try {
         const balance = await state.provider.getBalance(state.address);
         const balanceAvax = parseFloat(ethers.utils.formatEther(balance));
         state.lastAvaxBalance = balanceAvax;
-        
+        localStorage.setItem(cacheKey, balanceAvax.toString());
         document.getElementById('avaxBalance').textContent = balanceAvax.toFixed(4);
         updateTokenBalanceInfo();
         updateUSDDisplay();
@@ -6119,16 +6162,51 @@ async function refreshBalance() {
     }
 }
 
-async function refreshAll() {
+async function refreshAll(forceFetch = false) {
     if (!state.address) return;
     
     try {
-        await refreshBalance();
-        await loadAllNFTs();
+        await refreshBalance(forceFetch);
+        await loadAllNFTs(forceFetch);
     } catch (e) {
         console.error('Refresh error:', e);
     }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// AVA CLOUD AUTO SYNC (بدون کلید)
+// ═══════════════════════════════════════════════════════════════
+async function checkAvaCloudUpdates() {
+    if (!state.address) return;
+    
+    const lastTxHashKey = 'foxLastTxHash_' + state.address.toLowerCase();
+    
+    try {
+        const url = `${CONFIG.avaCloud.baseUrl}/v1/chains/${CONFIG.avaCloud.chainId}/addresses/${state.address}/transactions?pageSize=1`;
+        const response = await fetch(url);
+        
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const txs = data.transactions || [];
+        
+        if (txs.length === 0) return;
+        
+        const latestTxHash = txs[0].txHash;
+        const lastKnownHash = localStorage.getItem(lastTxHashKey);
+        
+        if (latestTxHash !== lastKnownHash) {
+            console.log('🔄 تراکنش جدید پیدا شد، در حال بروزرسانی...');
+            localStorage.setItem(lastTxHashKey, latestTxHash);
+            
+            await refreshAll(true);
+            await loadFullTxHistory();
+        }
+    } catch (e) {
+        console.error('AvaCloud check error:', e);
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SEED MODAL
 // ═══════════════════════════════════════════════════════════════
@@ -6309,6 +6387,11 @@ async function confirmExitWallet() {
         
         const favoritesKey = 'foxFavorites_' + addressToDelete.toLowerCase();
         localStorage.removeItem(favoritesKey);
+        
+        // پاک کردن کش
+        localStorage.removeItem('foxCachedBalance_' + addressToDelete.toLowerCase());
+        localStorage.removeItem('foxCachedNFTs_' + addressToDelete.toLowerCase());
+        localStorage.removeItem('foxLastTxHash_' + addressToDelete.toLowerCase());
         
         state.address = null;
         state.encryptedSeed = null;
@@ -6492,7 +6575,7 @@ async function addCreateWallet() {
             showNotification('success', '✅', t('walletAdded'));
             
             loadFavorites();
-            await refreshAll();
+            await refreshAll(true);
             await loadFullTxHistory();
         }
     } catch (e) { 
@@ -6526,7 +6609,7 @@ async function addImportWallet() {
             showNotification('success', '✅', t('walletAdded'));
             
             loadFavorites();
-            await refreshAll();
+            await refreshAll(true);
             await loadFullTxHistory();
         }
     } catch (e) { 
@@ -6600,7 +6683,7 @@ async function createWallet() {
             newMnemonic = '';
             
             loadFavorites();
-            await refreshAll();
+            await refreshAll(true);
             await loadFullTxHistory();
         }
     } catch (e) { 
@@ -6634,7 +6717,7 @@ async function importWallet() {
             showNotification('success', '🎉', t('walletImported'));
             
             loadFavorites();
-            await refreshAll();
+            await refreshAll(true);
             await loadFullTxHistory();
         }
     } catch (e) { 
@@ -6677,7 +6760,7 @@ async function unlockWallet() {
         } else {
             loadTxHistoryFromCache();
             renderTxHistory();
-            await refreshAll();
+            await refreshAll(false);
             await loadFullTxHistory();
         }
     } catch (e) { 
@@ -6969,7 +7052,23 @@ window.addEventListener('beforeunload', function() {
         try { state.qrScanner.stop(); } catch(e) {}
     }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// AUTO SYNC TIMER (هر ۱۶ ثانیه فقط وقتی کاربر توی اپه)
+// ═══════════════════════════════════════════════════════════════
+setInterval(() => {
+    if (!document.hidden && state.unlocked && state.address) {
+        checkAvaCloudUpdates();
+    }
+}, 16000);
+
+// وقتی کاربر برگشت به اپ، سریع آپدیت کن
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && state.unlocked && state.address) {
+        checkAvaCloudUpdates();
+    }
+});
 </script>
 
 </body>
-                                                                                       </html>
+    </html>
