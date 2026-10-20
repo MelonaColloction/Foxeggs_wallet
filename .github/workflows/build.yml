@@ -10,7 +10,7 @@ on:
       - 'price.js'
       - 'icon.png'
       - 'notification.png'
-      - 'Fox123.png'
+      - 'Foxlogo.png'
       - 'image/**'
       - '.github/workflows/build.yml'
 
@@ -26,7 +26,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-
       # ==========================================
       # NODE.JS
       # ==========================================
@@ -34,7 +33,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 24
-
 
       # ==========================================
       # JAVA
@@ -45,7 +43,6 @@ jobs:
           distribution: temurin
           java-version: 21
 
-
       # ==========================================
       # ANDROID SDK
       # ==========================================
@@ -53,7 +50,6 @@ jobs:
         uses: android-actions/setup-android@v4
         with:
           packages: ''
-
 
       # ==========================================
       # INSTALL ANDROID PACKAGES
@@ -67,7 +63,6 @@ jobs:
             "build-tools;35.0.0"
           echo "Android SDK packages installed."
 
-
       # ==========================================
       # PREPARE WALLET
       # ==========================================
@@ -76,6 +71,7 @@ jobs:
           test -f index.html
           rm -rf www
           mkdir -p www
+          
           cp index.html www/index.html
           
           # کپی price.js
@@ -94,21 +90,18 @@ jobs:
           EOF
           fi
           
-          # کپی لوگو
-          if [ -f Foxlogo.png ]; then
-            cp Foxlogo.png www/Foxlogo.png
-            echo "✅ Foxlogo.png copied to www/"
-          fi
+          # کپی تمام عکس‌های png که توی ریشه هستن (برای لوگو)
+          find . -maxdepth 1 -type f -iname "*.png" -exec cp {} www/ \;
+          echo "✅ Root PNG images copied to www/"
 
-          # کپی پوشه عکس‌های NFT (بدون هیچ تغییری در کیفیت)
+          # کپی پوشه عکس‌های NFT
           if [ -d image ]; then
             cp -r image www/image
-            echo "✅ image/ folder copied to www/ (original quality)"
+            echo "✅ image/ folder copied to www/"
           fi
           
           echo "Wallet prepared."
           ls -la www/
-
 
       # ==========================================
       # CREATE PACKAGE.JSON
@@ -132,14 +125,12 @@ jobs:
           }
           EOF
 
-
       # ==========================================
       # INSTALL DEPENDENCIES
       # ==========================================
       - name: Install dependencies
         run: |
           npm install
-
 
       # ==========================================
       # CREATE CAPACITOR CONFIG
@@ -154,14 +145,12 @@ jobs:
           }
           EOF
 
-
       # ==========================================
       # ADD ANDROID
       # ==========================================
       - name: Add Android
         run: |
           npx cap add android
-
 
       # ==========================================
       # ENABLE IMMERSIVE FULLSCREEN
@@ -186,10 +175,7 @@ jobs:
           with open(main_activity, "r", encoding="utf-8") as f:
               original = f.read()
 
-          package_match = re.search(
-              r'^\s*package\s+([^;]+);',
-              original, re.MULTILINE
-          )
+          package_match = re.search(r'^\s*package\s+([^;]+);', original, re.MULTILINE)
 
           if not package_match:
               raise SystemExit("Package name not found.")
@@ -233,14 +219,12 @@ jobs:
           print("Fullscreen MainActivity created.")
           PY
 
-
       # ==========================================
       # SYNC ANDROID
       # ==========================================
       - name: Sync Android
         run: |
           npx cap sync android
-
 
       # ==========================================
       # VERSION
@@ -256,7 +240,6 @@ jobs:
           echo "Version Code: $VERSION_CODE"
           echo "Version Name: $VERSION_NAME"
 
-
       # ==========================================
       # LOAD KEYSTORE
       # ==========================================
@@ -270,7 +253,6 @@ jobs:
           mkdir -p android/app
           cp FoxEggs.keystore android/app/FoxEggs.keystore
           echo "Keystore loaded."
-
 
       # ==========================================
       # CONFIGURE SIGNING PROPERTIES
@@ -294,7 +276,6 @@ jobs:
           fi
 
           echo "✅ AUTO-DETECTED ALIAS: $ALIAS"
-          echo "DETECTED_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
 
           cat >> android/gradle.properties <<EOF
 
@@ -306,9 +287,8 @@ jobs:
 
           echo "Signing properties configured."
 
-
       # ==========================================
-      # CONFIGURE ANDROID GRADLE (کاهش حجم بدون افت کیفیت)
+      # CONFIGURE ANDROID GRADLE
       # ==========================================
       - name: Configure Android Gradle
         run: |
@@ -325,10 +305,7 @@ jobs:
           text = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ["VERSION_CODE"], text, count=1)
           text = re.sub(r'versionName\s+"[^"]+"', 'versionName "' + os.environ["VERSION_NAME"] + '"', text, count=1)
 
-          text = re.sub(
-              r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)',
-              '', text, count=1, flags=re.S
-          )
+          text = re.sub(r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)', '', text, count=1, flags=re.S)
 
           signing_block = '''
               signingConfigs {
@@ -347,20 +324,11 @@ jobs:
           if "signingConfigs {" not in text:
               text = text.replace("    buildTypes {", signing_block + "    buildTypes {", 1)
 
-          release_pattern = r'(buildTypes\s*\{\s*release\s*\{)'
           if "signingConfig signingConfigs.release" not in text:
-              text = re.sub(
-                  release_pattern,
-                  r'\1\n            signingConfig signingConfigs.release',
-                  text, count=1, flags=re.S
-              )
+              text = re.sub(r'(buildTypes\s*\{\s*release\s*\{)', r'\1\n            signingConfig signingConfigs.release', text, count=1, flags=re.S)
 
-          # 👇 کاهش حجم با حذف فایل‌های اضافی (بدون تغییر در عکس‌ها)
           if re.search(r'buildTypes\s*\{.*?release\s*\{', text, re.S):
-              release_match = re.search(
-                  r'(buildTypes\s*\{\s*release\s*\{)(.*?)(\n\s*\})',
-                  text, re.S
-              )
+              release_match = re.search(r'(buildTypes\s*\{\s*release\s*\{)(.*?)(\n\s*\})', text, re.S)
               if release_match:
                   release_body = release_match.group(2)
                   
@@ -376,7 +344,6 @@ jobs:
                       
                   text = text[:release_match.start(2)] + release_body + text[release_match.end(2):]
 
-          # 👇 خط طلایی: جلوگیری از فشرده‌سازی عکس‌ها (حفظ کیفیت ۱۰۰٪)
           if "androidResources {" not in text:
               android_resources = '''
               androidResources {
@@ -388,9 +355,8 @@ jobs:
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
 
-          print("Android Gradle configured: Size Reduced, Image Quality Preserved 100%.")
+          print("Android Gradle configured.")
           PY
-
 
       # ==========================================
       # CLEAN UNNECESSARY PERMISSIONS
@@ -427,7 +393,6 @@ jobs:
           print("Unnecessary permissions removed.")
           PY
 
-
       # ==========================================
       # ADD PERMISSIONS
       # ==========================================
@@ -462,13 +427,11 @@ jobs:
           print("Permissions added.")
           PY
 
-
       # ==========================================
       # INSTALL PILLOW
       # ==========================================
       - name: Install Pillow
         run: python3 -m pip install pillow
-
 
       # ==========================================
       # FIND ICONS
@@ -525,7 +488,6 @@ jobs:
           print("=" * 50)
           PY
 
-
       # ==========================================
       # GENERATE LAUNCHER ICONS
       # ==========================================
@@ -557,7 +519,6 @@ jobs:
 
           print("✅ Launcher icons created from", filename)
           PY
-
 
       # ==========================================
       # GENERATE NOTIFICATION ICONS
@@ -604,7 +565,6 @@ jobs:
           print("✅ Notification icons created from", filename)
           PY
 
-
       # ==========================================
       # REMOVE ADAPTIVE ICONS
       # ==========================================
@@ -612,28 +572,6 @@ jobs:
         run: |
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
-
-
-      # ==========================================
-      # VERIFY
-      # ==========================================
-      - name: Verify icons
-        run: |
-          echo "=========================================="
-          echo "LAUNCHER ICONS"
-          echo "=========================================="
-          find android/app/src/main/res -name "ic_launcher*.png" | sort
-          echo ""
-          echo "=========================================="
-          echo "NOTIFICATION ICONS"
-          echo "=========================================="
-          find android/app/src/main/res -name "ic_notification.png" | sort
-          echo ""
-          echo "=========================================="
-          echo "WWW CONTENT"
-          echo "=========================================="
-          ls -la www/
-
 
       # ==========================================
       # BUILD APK
@@ -645,14 +583,12 @@ jobs:
           ./gradlew clean
           ./gradlew assembleRelease --no-daemon
 
-
       # ==========================================
       # BUILD AAB
       # ==========================================
       - name: Build Release AAB
         working-directory: android
         run: ./gradlew bundleRelease --no-daemon
-
 
       # ==========================================
       # PREPARE RELEASE
@@ -662,12 +598,7 @@ jobs:
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk release/FoxEggs-Wallet.apk
           cp android/app/build/outputs/bundle/release/app-release.aab release/FoxEggs-Wallet.aab
-          
-          echo ""
-          echo "📦 حجم نهایی APK:"
-          du -h release/FoxEggs-Wallet.apk
-          echo "✅ Release prepared."
-
+          echo "Release prepared."
 
       # ==========================================
       # UPLOAD
@@ -678,7 +609,6 @@ jobs:
           name: FoxEggs-Wallet-v${{ env.VERSION_NAME }}
           path: release/
           if-no-files-found: error
-
 
       # ==========================================
       # CLEANUP
