@@ -6151,7 +6151,7 @@ function closeSuccessModal() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// REFRESH & CACHING SYSTEM
+// REFRESH & CACHING SYSTEM (با تشخیص واریزی)
 // ═══════════════════════════════════════════════════════════════
 async function refreshBalance(forceFetch = false) {
     if (!state.address) return;
@@ -6208,7 +6208,7 @@ async function refreshAll(forceFetch = false) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AVA CLOUD AUTO SYNC (بدون کلید)
+// AVA CLOUD AUTO SYNC (بدون کلید + تشخیص واریزی)
 // ═══════════════════════════════════════════════════════════════
 async function checkAvaCloudUpdates() {
     if (!state.address) return;
@@ -6422,7 +6422,6 @@ async function confirmExitWallet() {
         const favoritesKey = 'foxFavorites_' + addressToDelete.toLowerCase();
         localStorage.removeItem(favoritesKey);
         
-        // پاک کردن کش
         localStorage.removeItem('foxCachedBalance_' + addressToDelete.toLowerCase());
         localStorage.removeItem('foxCachedNFTs_' + addressToDelete.toLowerCase());
         localStorage.removeItem('foxLastTxHash_' + addressToDelete.toLowerCase());
@@ -6854,7 +6853,7 @@ async function unlockWallet() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AVA CLOUD API
+// AVA CLOUD API (با نوتیفیکیشن دریافتی)
 // ═══════════════════════════════════════════════════════════════
 async function fetchAVAXTransactions(address) {
     try {
@@ -6932,6 +6931,15 @@ function mergeAvaCloudTransactions(avaxTxs, nftTxs) {
         state.txHistory.push(txRecord);
         existingHashes.add(avaxTx.txHash);
         newCount++;
+        
+        // 👇 اگه پول دریافت شده بود، نوتیفیکیشن بده
+        if (isIncoming) {
+            const notifTitle = currentLang === 'fa' ? '📥 دریافت AVAX' : '📥 AVAX Received';
+            const notifBody = currentLang === 'fa'
+                ? `${formatAmount(valueAvax)} AVAX دریافت کردید`
+                : `Received ${formatAmount(valueAvax)} AVAX`;
+            showNotification('success', notifTitle, notifBody);
+        }
     }
     
     for (const nftTx of nftTxs) {
@@ -6992,6 +7000,15 @@ function mergeAvaCloudTransactions(avaxTxs, nftTxs) {
         state.txHistory.push(txRecord);
         existingHashes.add(nftTx.txHash);
         newCount++;
+        
+        // 👇 اگه NFT دریافت شده بود، نوتیفیکیشن بده
+        if (isIncoming) {
+            const notifTitle = currentLang === 'fa' ? '📥 دریافت NFT' : '📥 NFT Received';
+            const notifBody = currentLang === 'fa'
+                ? `${finalName} دریافت کردید`
+                : `Received ${finalName}`;
+            showNotification('success', notifTitle, notifBody);
+        }
     }
     
     state.txHistory.sort((a, b) => b.timestamp - a.timestamp);
@@ -7024,6 +7041,45 @@ async function loadFullTxHistory() {
         console.error('Load full history:', e);
         restoreConnectedStatus();
     }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PUSH NOTIFICATION REGISTRATION (برای سرور Railway)
+// ═══════════════════════════════════════════════════════════════
+// این تابع برای آینده گذاشته شده. وقتی سرور روی Railway راه اندازی شد،
+// فقط توکن FCM رو به سرور می‌فرستی و بقیه کارها خودکار می‌شه.
+async function registerForPushNotifications() {
+    // ⚠️ این تابع فعلاً غیرفعاله. برای فعال‌سازی:
+    // 1. Firebase Cloud Messaging (FCM) رو راه‌اندازی کن
+    // 2. توکن رو ذخیره کن
+    // 3. توکن رو به سرور Railway بفرست
+    
+    /*
+    try {
+        if (!isNative) return;
+        const { PushNotifications } = window.Capacitor.Plugins;
+        if (!PushNotifications) return;
+        
+        const result = await PushNotifications.requestPermissions();
+        if (result.receive !== 'granted') return;
+        
+        await PushNotifications.register();
+        
+        PushNotifications.addListener('registration', (token) => {
+            // اینجا توکن رو به سرور Railway بفرست
+            fetch('https://your-railway-server.com/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    address: state.address,
+                    fcmToken: token.value
+                })
+            }).catch(e => console.error('Register error:', e));
+        });
+    } catch (e) {
+        console.error('Push registration error:', e);
+    }
+    */
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -7063,12 +7119,10 @@ async function init() {
                 setTimeout(async () => {
                     const success = await tryBiometricUnlock();
                     if (!success) {
-                        // اگه اثر انگشت کار نکرد، رمز بپرس
                         showUnlockModal();
                     }
                 }, 500);
             } else {
-                // اگه اثر انگشت فعال نیست، رمز بپرس
                 showUnlockModal();
                 updateWalletDropdown();
             }
@@ -7092,6 +7146,9 @@ async function init() {
         await NativeNotifications.createChannels();
         await NativeNotifications.requestPermission();
         await NativeNotifications.checkPermission();
+        
+        // ثبت برای Push Notification (اختیاری - برای آینده)
+        // await registerForPushNotifications();
         
         const provider = await findBestRPC();
         
