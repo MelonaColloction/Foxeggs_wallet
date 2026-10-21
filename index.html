@@ -2791,15 +2791,15 @@ const CONFIG = {
     {
         address: '0x4B1e65f73D8433043Bbe0AB8Cb3f118FAC662F9a',
         name: 'Guardian Collection',
-        image: 'image/TheGuardianOfFoxeggs.png', // 👈 بدون فاصله
+        image: 'image/guardian.png', // 👈 مسیر واقعی فایل شما
         itemNames: {
-            1: 'The Guardian of Foxeggs'
+            1: 'The Guardian of Foxeggs' // 👈 اسمی که در تاریخچه نمایش داده می‌شود
         }
     },
     {
         address: '0xcfd6c099bc8B3c91D47D62156AEc6BA128eB6B92',
         name: 'FoxEggs Autumn Edition',
-        image: 'image/FoxOfAutumnNights.png', // 👈 بدون فاصله
+        image: 'image/autumn.png', // 👈 مسیر واقعی فایل شما
         itemNames: {
             1: 'Fox of Autumn Nights'
         }
@@ -2807,7 +2807,7 @@ const CONFIG = {
     {
         address: '0xaA890ebf2a6356c9Da9E5B13C01db4aC88A70c8a',
         name: 'Fox Eggs: Frozen Realm',
-        image: 'image/FrostbiteFox.png', // 👈 بدون فاصله
+        image: 'image/frozen.png', // 👈 مسیر واقعی فایل شما
         itemNames: {
             1: 'Frostbite Fox'
         }
@@ -3800,16 +3800,20 @@ async function renderTxItem(tx, index) {
     } else if (tx.type === 'nft') {
         let displayImage = null;
 
-        // 👇 حذف فاصله‌ها از نام NFT و ساخت مسیر عکس
-        if (tx.nftName) {
-            const cleanName = tx.nftName.replace(/\s+/g, ''); 
-            displayImage = `image/${cleanName}.png`;
+        // 👇 پیدا کردن عکس مستقیماً از پوشه image بر اساس آدرس قرارداد
+        const contractAddr = tx.contract || tx.contractAddress; 
+        if (contractAddr) {
+            const contractInfo = CONFIG.nftContracts.find(
+                c => c.address.toLowerCase() === contractAddr.toLowerCase()
+            );
+            if (contractInfo && contractInfo.image) {
+                displayImage = contractInfo.image;
+            }
         }
 
-        // اگر عکسی با این اسم نبود، از عکس کانفیگ استفاده کن
-        if (!displayImage && tx.contract) {
-            const contractInfo = CONFIG.nftContracts.find(c => c.address.toLowerCase() === tx.contract.toLowerCase());
-            if (contractInfo) displayImage = contractInfo.image;
+        // اگر به هر دلیلی پیدا نشد، از عکس ذخیره شده در خود تراکنش استفاده کن
+        if (!displayImage && tx.image) {
+            displayImage = tx.image;
         }
 
         if (displayImage) {
@@ -3894,15 +3898,19 @@ async function openTxDetail(index) {
     } else if (tx.type === 'nft') {
         let displayImage = null;
 
-        // 👇 حذف فاصله‌ها از نام NFT و ساخت مسیر عکس
-        if (tx.nftName) {
-            const cleanName = tx.nftName.replace(/\s+/g, '');
-            displayImage = `image/${cleanName}.png`;
+        // 👇 پیدا کردن عکس مستقیماً از پوشه image بر اساس آدرس قرارداد
+        const contractAddr = tx.contract || tx.contractAddress;
+        if (contractAddr) {
+            const contractInfo = CONFIG.nftContracts.find(
+                c => c.address.toLowerCase() === contractAddr.toLowerCase()
+            );
+            if (contractInfo && contractInfo.image) {
+                displayImage = contractInfo.image;
+            }
         }
 
-        if (!displayImage && tx.contract) {
-            const contractInfo = CONFIG.nftContracts.find(c => c.address.toLowerCase() === tx.contract.toLowerCase());
-            if (contractInfo) displayImage = contractInfo.image;
+        if (!displayImage && tx.image) {
+            displayImage = tx.image;
         }
         
         let imageHtml = displayImage
