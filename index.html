@@ -2788,23 +2788,29 @@ const CONFIG = {
         deadlineMinutes: 20
     },
     nftContracts: [
-    { 
-        address: '0x4B1e65f73D8433043Bbe0AB8Cb3f118FAC662F9a', 
-        name: 'Guardian Collection', 
-        image: 'image/The Guardian of Foxeggs.png', // 👈 اسم دقیق NFT
-        itemNames: { 1: 'The Guardian of Foxeggs' } 
+    {
+        address: '0x4B1e65f73D8433043Bbe0AB8Cb3f118FAC662F9a',
+        name: 'Guardian Collection',
+        image: 'image/TheGuardianOfFoxeggs.png', // 👈 بدون فاصله
+        itemNames: {
+            1: 'The Guardian of Foxeggs'
+        }
     },
-    { 
-        address: '0xcfd6c099bc8B3c91D47D62156AEc6BA128eB6B92', 
-        name: 'FoxEggs Autumn Edition', 
-        image: 'image/Fox of Autumn Nights.png', // 👈 اسم دقیق NFT
-        itemNames: { 1: 'Fox of Autumn Nights' } 
+    {
+        address: '0xcfd6c099bc8B3c91D47D62156AEc6BA128eB6B92',
+        name: 'FoxEggs Autumn Edition',
+        image: 'image/FoxOfAutumnNights.png', // 👈 بدون فاصله
+        itemNames: {
+            1: 'Fox of Autumn Nights'
+        }
     },
-    { 
-        address: '0xaA890ebf2a6356c9Da9E5B13C01db4aC88A70c8a', 
-        name: 'Fox Eggs: Frozen Realm', 
-        image: 'image/Frostbite Fox.png', // 👈 اسم دقیق NFT
-        itemNames: { 1: 'Frostbite Fox' } 
+    {
+        address: '0xaA890ebf2a6356c9Da9E5B13C01db4aC88A70c8a',
+        name: 'Fox Eggs: Frozen Realm',
+        image: 'image/FrostbiteFox.png', // 👈 بدون فاصله
+        itemNames: {
+            1: 'Frostbite Fox'
+        }
     }
 ],
     nftIdsToCheck: 1,
@@ -3793,17 +3799,21 @@ async function renderTxItem(tx, index) {
         amountHtml = `<div class="tx-sub ${isIncoming ? 'amount-in' : 'amount-out'}">${amountStr}</div>`;
     } else if (tx.type === 'nft') {
         let displayImage = null;
-        
-        // 👇 راه‌حل نهایی: اسم NFT را بردار و از پوشه image لود کن
+
+        // 👇 حذف فاصله‌ها از نام NFT و ساخت مسیر عکس
         if (tx.nftName) {
-    // تبدیل فاصله‌ها به %20 تا مرورگر بهتر فایل را پیدا کند
-    displayImage = `image/${encodeURIComponent(tx.nftName)}.png`; 
-}
-        
+            const cleanName = tx.nftName.replace(/\s+/g, ''); 
+            displayImage = `image/${cleanName}.png`;
+        }
+
+        // اگر عکسی با این اسم نبود، از عکس کانفیگ استفاده کن
+        if (!displayImage && tx.contract) {
+            const contractInfo = CONFIG.nftContracts.find(c => c.address.toLowerCase() === tx.contract.toLowerCase());
+            if (contractInfo) displayImage = contractInfo.image;
+        }
+
         if (displayImage) {
-            // اگر عکس با پسوند png پیدا نشد، به صورت خودکار jpg را امتحان می‌کند
-            iconHtml = `<img src="${displayImage}" class="tx-image" 
-                onerror="if(this.src.endsWith('.png')){this.src=this.src.replace('.png','.jpg')}else{this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'}" />`;
+            iconHtml = `<img src="${displayImage}" class="tx-image" onerror="this.outerHTML='&lt;div class=\\'tx-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`;
         } else {
             iconHtml = `<div class="tx-image placeholder">🎨</div>`;
         }
@@ -3883,15 +3893,20 @@ async function openTxDetail(index) {
         `;
     } else if (tx.type === 'nft') {
         let displayImage = null;
-        
-        // 👇 راه‌حل نهایی: اسم NFT را بردار و از پوشه image لود کن
+
+        // 👇 حذف فاصله‌ها از نام NFT و ساخت مسیر عکس
         if (tx.nftName) {
-    displayImage = `image/${encodeURIComponent(tx.nftName)}.png`;
-}
+            const cleanName = tx.nftName.replace(/\s+/g, '');
+            displayImage = `image/${cleanName}.png`;
+        }
+
+        if (!displayImage && tx.contract) {
+            const contractInfo = CONFIG.nftContracts.find(c => c.address.toLowerCase() === tx.contract.toLowerCase());
+            if (contractInfo) displayImage = contractInfo.image;
+        }
         
         let imageHtml = displayImage
-            ? `<img src="${displayImage}" class="detail-nft-image" 
-                onerror="if(this.src.endsWith('.png')){this.src=this.src.replace('.png','.jpg')}else{this.outerHTML='&lt;div class=\\'detail-nft-image placeholder\\'&gt;🎨&lt;/div&gt;'}" />`
+            ? `<img src="${displayImage}" class="detail-nft-image" onerror="this.outerHTML='&lt;div class=\\'detail-nft-image placeholder\\'&gt;🎨&lt;/div&gt;'" />`
             : `<div class="detail-nft-image placeholder">🎨</div>`;
         
         contentHtml = `
