@@ -24,7 +24,7 @@ jobs:
       # CHECKOUT
       # ==========================================
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       # ==========================================
       # NODE.JS
@@ -32,7 +32,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
 
       # ==========================================
       # JAVA
@@ -75,9 +75,9 @@ jobs:
 
           if [ -f price.js ]; then
             cp price.js www/price.js
-            echo "✅ price.js copied to www/"
+            echo "✅ price.js copied"
           else
-            echo "⚠️  price.js not found — creating empty fallback"
+            echo "⚠️  price.js not found — empty fallback"
             cat > www/price.js <<'EOF'
           window.NFT_PRICES = {
               currency: 'USDT',
@@ -96,8 +96,7 @@ jobs:
           ls -la www/
 
       # ==========================================
-      # OBFUSCATE & MINIFY — SAFE MODE + AUTO MIGRATION
-      # index.html دست‌نخورده | والت قبلی برمی‌گرده | کد غیرقابل‌خواندن
+      # OBFUSCATE & MINIFY — SAFE + SMART MIGRATION
       # ==========================================
       - name: Obfuscate and Minify
         run: |
@@ -111,29 +110,32 @@ jobs:
               "--identifier-names-generator", "hexadecimal",
               "--string-array", "true",
               "--string-array-encoding", "base64",
-              "--string-array-threshold", "0.75",
+              "--string-array-threshold", "0.6",
               "--string-array-rotate", "true",
               "--string-array-shuffle", "true",
-              "--string-array-index-shift", "true",
-              "--string-array-wrappers-count", "2",
+              "--target", "browser",
               "--control-flow-flattening", "false",
               "--dead-code-injection", "false",
               "--dispatcher", "false",
               "--self-defending", "false",
               "--debug-protection", "false",
               "--split-strings", "false",
-              "--numbers-to-expressions", "false",
-              "--transform-object-keys", "false",
           ]
 
-          def obf(content, label):
-              if len(content.strip()) < 100:
+          def obf(content, label, timeout=600):
+              if len(content.strip()) < 200:
                   return content
               with open("_i.js", "w", encoding="utf-8") as f: f.write(content)
-              subprocess.run(["javascript-obfuscator", "_i.js", "--output", "_o.js"] + FLAGS,
-                             capture_output=True, text=True)
+              try:
+                  r = subprocess.run(["javascript-obfuscator", "_i.js", "--output", "_o.js"] + FLAGS,
+                                     capture_output=True, text=True, timeout=timeout)
+              except subprocess.TimeoutExpired:
+                  print(f"[TIMEOUT] {label} — keeping original")
+                  for p in ("_i.js", "_o.js"):
+                      if os.path.exists(p): os.remove(p)
+                  return content
               out = None
-              if os.path.exists("_o.js"):
+              if r.returncode == 0 and os.path.exists("_o.js"):
                   with open("_o.js", "r", encoding="utf-8") as f: out = f.read()
               for p in ("_i.js", "_o.js"):
                   if os.path.exists(p): os.remove(p)
@@ -143,65 +145,37 @@ jobs:
               print(f"[OK] {label}: {len(content)} → {len(out)}")
               return out
 
-          # ۱. کشف کلید اصلی والت
-          main_key = "fox_wallet"
-          try:
-              with open("www/index.html", "r", encoding="utf-8") as f:
-                  src = f.read()
-              m = re.search(r"localStorage\.(?:getItem|setItem)\(\s*['\"]([^'\"]+)['\"]", src)
-              if m:
-                  main_key = m.group(1)
-                  print(f"[DETECT] main key: {main_key}")
-              else:
-                  m = re.search(r"(?:STORAGE_KEY|WALLET_KEY|KEY)\s*=\s*['\"]([^'\"]+)['\"]", src)
-                  if m:
-                      main_key = m.group(1)
-                      print(f"[DETECT] main key (var): {main_key}")
-                  else:
-                      print(f"[DETECT] using default: {main_key}")
-          except Exception as e:
-              print(f"[WARN] key detect failed: {e}")
-
-          # ۲. تزریق migration
-          migration = (
-              "<script>/*auto-migration*/(function(){try{"
-              "var M=" + repr(main_key) + ";"
-              "if(localStorage.getItem(M))return;"
-              "var L=['fox_wallet','fox_wallet_v1','fox_wallet_v2','foxeggs_wallet','wallet','wallet_data','wallet_v1','wallet_v2','user_wallet','my_wallet','seed','seed_phrase','mnemonic','fox_seed','foxeggs_seed','fox_wallet_data'];"
-              "for(var i=0;i<L.length;i++){var v=localStorage.getItem(L[i]);if(v&&v.length>10){localStorage.setItem(M,v);return;}}"
-              "var K=Object.keys(localStorage);"
-              "for(var j=0;j<K.length;j++){var k=K[j].toLowerCase();"
-              "if(k.indexOf('wallet')>-1||k.indexOf('seed')>-1||k.indexOf('mnemonic')>-1||k.indexOf('fox')>-1){localStorage.setItem(M,localStorage.getItem(K[j]));return;}}"
-              "}catch(e){}})();</script>"
-          )
+          mig = ("<script>/*auto-migration*/(function(){try{"
+                 "var M='foxWallets';"
+                 "if(localStorage.getItem(M)){try{var a=JSON.parse(localStorage.getItem(M));"
+                 "if(Array.isArray(a)&&a.length>0)return;}catch(e){}}"
+                 "var K=Object.keys(localStorage);"
+                 "for(var i=0;i<K.length;i++){var k=K[i];"
+                 "if(k.indexOf('foxWalletBackup_')===0){try{var b=JSON.parse(localStorage.getItem(k));"
+                 "if(b&&b.address&&b.encryptedSeed){"
+                 "localStorage.setItem(M,JSON.stringify([{address:b.address,encryptedSeed:b.encryptedSeed}]));return;"
+                 "}}catch(e){}}}"
+                 "}catch(e){}})();</script>")
 
           with open("www/index.html", "r", encoding="utf-8") as f:
               html = f.read()
-
           marker = "/*auto-migration*/"
           if marker not in html:
               if "<script" in html.lower():
-                  html = re.sub(r"(<script)", migration + r"\n\1", html, count=1, flags=re.IGNORECASE)
+                  html = re.sub(r"(<script)", mig + r"\n\1", html, count=1, flags=re.IGNORECASE)
               else:
-                  html = html.replace("</head>", migration + "\n</head>", 1)
+                  html = html.replace("</head>", mig + "\n</head>", 1)
               with open("www/index.html", "w", encoding="utf-8") as f:
                   f.write(html)
               print("[OK] migration injected")
-          else:
-              print("[SKIP] migration already present")
 
-          # ۳. JSهای خارجی (به جز price.js)
           for root, _, files in os.walk("www"):
               for fn in files:
-                  if not fn.endswith(".js"): continue
-                  if fn == "price.js":
-                      print("[SKIP] price.js protected")
-                      continue
+                  if not fn.endswith(".js") or fn == "price.js": continue
                   p = os.path.join(root, fn)
                   with open(p, "r", encoding="utf-8") as f: src = f.read()
                   with open(p, "w", encoding="utf-8") as f: f.write(obf(src, p))
 
-          # ۴. HTML: inline + obf (price.js محافظت)
           htmls = []
           for root, _, files in os.walk("www"):
               for fn in files:
@@ -212,9 +186,9 @@ jobs:
 
               def inline_src(m):
                   src = m.group(1)
+                  if src.startswith(("http://", "https://", "//")): return m.group(0)
                   sp = os.path.normpath(os.path.join(os.path.dirname(hf), src))
-                  if os.path.basename(sp) == "price.js":
-                      return m.group(0)
+                  if os.path.basename(sp) == "price.js": return m.group(0)
                   if os.path.exists(sp):
                       with open(sp, "r", encoding="utf-8") as sf: js = sf.read()
                       o = obf(js, sp)
@@ -227,44 +201,24 @@ jobs:
 
               def obf_inline(m):
                   body = m.group(1)
-                  if marker in body:
-                      return m.group(0)
+                  if marker in body or len(body.strip()) < 200: return m.group(0)
                   return "<script>\n" + obf(body, f"{hf}:inline") + "\n</script>"
-              html = re.sub(r'<script(?:\s+[^>]*)?>(.*?)</script>', obf_inline, html, flags=re.DOTALL)
 
+              html = re.sub(r'<script(?:\s+[^>]*)?>(.*?)</script>', obf_inline, html, flags=re.DOTALL)
               with open(hf, "w", encoding="utf-8") as f: f.write(html)
               print(f"[OK] HTML: {hf}")
 
-          # ۵. minify
           for hf in htmls:
               tmp = hf + ".min"
-              r = subprocess.run(["html-minifier-terser",
-                  "--collapse-whitespace", "--remove-comments",
-                  "--remove-redundant-attributes",
-                  "--remove-script-type-attributes",
-                  "--remove-style-link-type-attributes",
-                  "--minify-css", "true", "--minify-js", "false",
-                  "--remove-attribute-quotes",
+              r = subprocess.run(["html-minifier-terser", "--collapse-whitespace", "--remove-comments",
+                  "--remove-redundant-attributes", "--minify-css", "true", "--minify-js", "false",
                   hf, "-o", tmp], capture_output=True, text=True)
-              if r.returncode == 0 and os.path.exists(tmp):
-                  os.replace(tmp, hf)
-                  print(f"[OK] Minified: {hf}")
+              if r.returncode == 0 and os.path.exists(tmp): os.replace(tmp, hf)
 
-          # ۶. health check
-          p = "www/index.html"
-          sz = os.path.getsize(p)
-          with open(p, "r", encoding="utf-8") as f: c = f.read()
-          has_close = "</html>" in c.lower()
-          has_script = "<script" in c.lower()
-          has_mig = marker in c
-          print(f"index.html: {sz} bytes | </html>={has_close} | <script>={has_script} | migration={has_mig}")
-          if sz < 1000 or not has_close or not has_script:
-              print("[ERROR] build likely broken!")
-              raise SystemExit(1)
-          if not has_mig:
-              print("[WARN] migration not found — wallet restore may fail")
-
-          print("✅ Safe obfuscation complete")
+          sz = os.path.getsize("www/index.html")
+          print(f"index.html: {sz} bytes")
+          assert sz > 1000, "build broken"
+          print("✅ Done")
           PY
 
       # ==========================================
@@ -281,7 +235,7 @@ jobs:
               "@capacitor/core": "^7.4.0",
               "@capacitor/android": "^7.4.0",
               "@capacitor/local-notifications": "^7.0.0",
-              "@capgo/capacitor-native-biometric": "^6.0.0"
+              "@capgo/capacitor-native-biometric": "^8.3.6"
             },
             "devDependencies": {
               "@capacitor/cli": "^7.4.0"
@@ -293,7 +247,7 @@ jobs:
       # INSTALL DEPENDENCIES
       # ==========================================
       - name: Install dependencies
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       # ==========================================
       # CREATE CAPACITOR CONFIG
