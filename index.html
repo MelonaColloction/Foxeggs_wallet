@@ -3778,26 +3778,21 @@ async function renderTxItem(tx, index) {
         amountHtml = `<div class="tx-sub ${isIncoming ? 'amount-in' : 'amount-out'}">${amountStr}</div>`;
     } else if (tx.type === 'nft') {
         let displayImage = null;
-        
-        // ۱. اول تلاش کن عکس رو از IndexedDB بگیر
-        if (tx.contract && tx.tokenId !== undefined) {
-            displayImage = await getNFTImageFromIndexedDB(tx.contract, tx.tokenId);
-        }
-        
-        // ۲. اگر نبود، چک کن ببین خود تراکنش عکس داره یا نه
-        if (!displayImage && tx.image) {
-            displayImage = tx.image;
+
+        // 👇 پیدا کردن عکس مستقیماً از پوشه image بر اساس آدرس قرارداد
+        const contractAddr = tx.contract || tx.contractAddress; 
+        if (contractAddr) {
+            const contractInfo = CONFIG.nftContracts.find(
+                c => c.address.toLowerCase() === contractAddr.toLowerCase()
+            );
+            if (contractInfo && contractInfo.image) {
+                displayImage = contractInfo.image;
+            }
         }
 
-        // ۳. اگر هیچکدوم نبود، برو از لیست NFTهای فعلی کیف پول پیدا کن (حل مشکل تراکنش‌های قدیمی)
-        if (!displayImage && tx.contract) {
-            const localNft = state.allNFTs.find(n => 
-                n.contract.toLowerCase() === tx.contract.toLowerCase() && 
-                String(n.id) === String(tx.tokenId)
-            );
-            if (localNft && localNft.image) {
-                displayImage = localNft.image;
-            }
+        // اگر به هر دلیلی پیدا نشد، از عکس ذخیره شده در خود تراکنش استفاده کن
+        if (!displayImage && tx.image) {
+            displayImage = tx.image;
         }
 
         if (displayImage) {
@@ -3881,26 +3876,20 @@ async function openTxDetail(index) {
         `;
     } else if (tx.type === 'nft') {
         let displayImage = null;
-        
-        // ۱. اول تلاش کن عکس رو از IndexedDB بگیر
-        if (tx.contract && tx.tokenId !== undefined) {
-            displayImage = await getNFTImageFromIndexedDB(tx.contract, tx.tokenId);
+
+        // 👇 پیدا کردن عکس مستقیماً از پوشه image بر اساس آدرس قرارداد
+        const contractAddr = tx.contract || tx.contractAddress;
+        if (contractAddr) {
+            const contractInfo = CONFIG.nftContracts.find(
+                c => c.address.toLowerCase() === contractAddr.toLowerCase()
+            );
+            if (contractInfo && contractInfo.image) {
+                displayImage = contractInfo.image;
+            }
         }
-        
-        // ۲. اگر نبود، چک کن ببین خود تراکنش عکس داره یا نه
+
         if (!displayImage && tx.image) {
             displayImage = tx.image;
-        }
-        
-        // ۳. اگر هیچکدوم نبود، برو از لیست NFTهای فعلی کیف پول پیدا کن
-        if (!displayImage && tx.contract) {
-            const localNft = state.allNFTs.find(n => 
-                n.contract.toLowerCase() === tx.contract.toLowerCase() && 
-                String(n.id) === String(tx.tokenId)
-            );
-            if (localNft && localNft.image) {
-                displayImage = localNft.image;
-            }
         }
         
         let imageHtml = displayImage
