@@ -4613,6 +4613,15 @@ function startSwap() {
 // ═══════════════════════════════════════════════════════════════
 async function executeSwap(tx) {
     try {
+        // 👇 اطمینان از اتصال signer به provider
+        if (!state.provider) {
+            showNotification('error', '❌', 'اتصال به شبکه برقرار نیست. لطفاً اینترنت خود را بررسی کنید.');
+            return;
+        }
+        if (!state.signer.provider) {
+            state.signer = state.signer.connect(state.provider);
+        }
+
         status(t('swapping'), 'info');
         
         const fromToken = tx.fromTokenInfo;
@@ -4640,11 +4649,7 @@ async function executeSwap(tx) {
         
         if (fromToken.isNative) {
             transaction = await router.swapExactAVAXForTokens(
-                amountOutMin,
-                path,
-                state.address,
-                deadline,
-                { value: amountIn }
+                amountOutMin, path, state.address, deadline, { value: amountIn }
             );
         } else if (toToken.isNative) {
             const tokenContract = new ethers.Contract(
@@ -4653,25 +4658,13 @@ async function executeSwap(tx) {
                  'function allowance(address, address) view returns (uint)'],
                 state.signer
             );
-            
             const allowance = await tokenContract.allowance(state.address, CONFIG.pangolin.routerAddress);
-            
             if (allowance.lt(amountIn)) {
                 status('⏳ در حال تأیید توکن...', 'info');
-                const approveTx = await tokenContract.approve(
-                    CONFIG.pangolin.routerAddress,
-                    ethers.constants.MaxUint256
-                );
+                const approveTx = await tokenContract.approve(CONFIG.pangolin.routerAddress, ethers.constants.MaxUint256);
                 await approveTx.wait();
             }
-            
-            transaction = await router.swapExactTokensForAVAX(
-                amountIn,
-                amountOutMin,
-                path,
-                state.address,
-                deadline
-            );
+            transaction = await router.swapExactTokensForAVAX(amountIn, amountOutMin, path, state.address, deadline);
         } else {
             const tokenContract = new ethers.Contract(
                 fromToken.address,
@@ -4679,25 +4672,13 @@ async function executeSwap(tx) {
                  'function allowance(address, address) view returns (uint)'],
                 state.signer
             );
-            
             const allowance = await tokenContract.allowance(state.address, CONFIG.pangolin.routerAddress);
-            
             if (allowance.lt(amountIn)) {
                 status('⏳ در حال تأیید توکن...', 'info');
-                const approveTx = await tokenContract.approve(
-                    CONFIG.pangolin.routerAddress,
-                    ethers.constants.MaxUint256
-                );
+                const approveTx = await tokenContract.approve(CONFIG.pangolin.routerAddress, ethers.constants.MaxUint256);
                 await approveTx.wait();
             }
-            
-            transaction = await router.swapExactTokensForTokens(
-                amountIn,
-                amountOutMin,
-                path,
-                state.address,
-                deadline
-            );
+            transaction = await router.swapExactTokensForTokens(amountIn, amountOutMin, path, state.address, deadline);
         }
         
         status(t('waitingNetwork'), 'info');
@@ -5092,6 +5073,15 @@ async function executeTxByType(tx) {
 // ═══════════════════════════════════════════════════════════════
 async function executeSendToken(tx) {
     try {
+        // 👇 اطمینان از اتصال signer به provider
+        if (!state.provider) {
+            showNotification('error', '❌', 'اتصال به شبکه برقرار نیست. لطفاً اینترنت خود را بررسی کنید.');
+            return;
+        }
+        if (!state.signer.provider) {
+            state.signer = state.signer.connect(state.provider);
+        }
+
         status(t('sending'), 'info');
         
         let gasPrice = await state.provider.getGasPrice();
@@ -5166,6 +5156,15 @@ async function executeSendToken(tx) {
 // ═══════════════════════════════════════════════════════════════
 async function executeSendNFT(tx) {
     try {
+        // 👇 اطمینان از اتصال signer به provider
+        if (!state.provider) {
+            showNotification('error', '❌', 'اتصال به شبکه برقرار نیست. لطفاً اینترنت خود را بررسی کنید.');
+            return;
+        }
+        if (!state.signer.provider) {
+            state.signer = state.signer.connect(state.provider);
+        }
+
         status(t('sending'), 'info');
         
         const contract = new ethers.Contract(
