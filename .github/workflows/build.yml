@@ -72,77 +72,33 @@ jobs:
           rm -rf www
           mkdir -p www
           cp index.html www/index.html
-          
+
+          # کپی price.js
           if [ -f price.js ]; then
             cp price.js www/price.js
             echo "✅ price.js copied to www/"
           else
+            echo "⚠️  price.js not found — creating empty fallback"
             cat > www/price.js <<'EOF'
-          window.NFT_PRICES = { currency: 'USDT', lastUpdate: 'unknown', collections: {}, overridePrices: {} };
+          window.NFT_PRICES = {
+              currency: 'USDT',
+              lastUpdate: 'unknown',
+              collections: {},
+              overridePrices: {}
+          };
           EOF
           fi
 
+          # کپی عکس‌ها
           if [ -f Fox123.png ]; then cp Fox123.png www/Fox123.png; fi
           if [ -f notification.png ]; then cp notification.png www/notification.png; fi
           if [ -d image ]; then cp -r image www/image; fi
-          
+
           echo "Wallet prepared."
+          ls -la www/
 
       # ==========================================
-      # 1. INJECT WALLET RECOVERY (نجات اطلاعات والت)
-      # ==========================================
-      - name: Inject Wallet Recovery
-        run: |
-          python3 - <<'PY'
-          import re
-          with open("www/index.html", "r", encoding="utf-8") as f:
-              html = f.read()
-
-          # اسکریپت نجات که قبل از هر چیز اجرا میشه
-          recovery_script = '''
-          <script>
-          // ===== FOXEGGS WALLET AUTO-RECOVERY =====
-          (function() {
-              var walletKeys = ['wallet', 'wallet_data', 'my_wallet', 'local_wallet', 'user_wallet', 'walletList', 'walletAddress', 'foxWallet', 'fox_wallet', 'foxeggs_wallet', 'foxeggsWallet', 'foxBest', 'foxGames', 'foxEggs', 'foxTotalScore', 'foxUserId'];
-              
-              try {
-                  var hasWallet = false;
-                  for (var i = 0; i < walletKeys.length; i++) {
-                      if (localStorage.getItem(walletKeys[i])) {
-                          hasWallet = true;
-                          break;
-                      }
-                  }
-
-                  if (!hasWallet) {
-                      for (var i = 0; i < walletKeys.length; i++) {
-                          var backup = sessionStorage.getItem(walletKeys[i]);
-                          if (backup) {
-                              localStorage.setItem(walletKeys[i], backup);
-                              console.log("✅ Wallet Recovered from SessionStorage:", walletKeys[i]);
-                              hasWallet = true;
-                          }
-                      }
-                  }
-              } catch(e) {
-                  console.error("Recovery failed:", e);
-              }
-          })();
-          </script>
-          '''
-
-          if '<head>' in html:
-              html = html.replace('<head>', '<head>\n' + recovery_script, 1)
-          else:
-              html = recovery_script + html
-
-          with open("www/index.html", "w", encoding="utf-8") as f:
-              f.write(html)
-          print("✅ Wallet Recovery Script Injected.")
-          PY
-
-      # ==========================================
-      # 2. OBFUSCATE & MINIFY CODE (با حفظ اطلاعات والت)
+      # OBFUSCATE & MINIFY CODE (SAFE MODE)
       # ==========================================
       - name: Obfuscate and Minify
         run: |
@@ -150,112 +106,207 @@ jobs:
           npm install -g javascript-obfuscator
           npm install -g html-minifier-terser
 
+          # ۱. فشرده‌سازی HTML (JS را دست نمی‌زنیم چون خودمان مبهم می‌کنیم)
+          html-minifier-terser \
+            --collapse-whitespace \
+            --remove-comments \
+            --minify-css true \
+            --minify-js false \
+            www/index.html -o www/index.html.min
+          mv www/index.html.min www/index.html
+
+          # ۲. مبهم‌سازی امن JS
           python3 - <<'PY'
-          import re
-          import os
-          import subprocess
+          import re, os, subprocess, tempfile, shutil
 
-          OBFUSCATOR = "javascript-obfuscator"
-
-          # ============================================================
-          # لیست کلمات کلیدی (کلیدهای localStorage و آبجکت‌ها)
-          # این کلمات هرگز مبهم نمی‌شوند تا اطلاعات قبلی پیدا شوند
-          # ============================================================
-          RESERVED_WORDS = ",".join([
-              # کلیدهای مربوط به والت
-              "wallet", "wallet_data", "wallets", "walletList", "my_wallet", 
-              "local_wallet", "user_wallet", "walletAddress", "wallet_address", 
-              "walletSeed", "privateKey", "private_key", "mnemonic", "seedPhrase", 
-              "seed_phrase", "balance", "transactions", "foxWallet", "fox_wallet",
-              "foxeggs_wallet", "foxeggsWallet",
-              # کلیدهای مربوط به بازی و رکوردها
-              "score", "best", "games", "eggs", "totalScore", "language", 
-              "sound", "theme", "foxUserId", "foxRegistered", "foxReferralCode",
-              "foxBest", "foxGames", "foxEggs", "foxTotalScore",
-              # نام آبجکت‌های مهم سیستم
-              "NFT_PRICES", "window", "localStorage", "sessionStorage", "JSON"
-          ])
-
-          # ============================================================
-          # فلگ‌های ابفوسکیتور (قوی، اما با احترام به کلمات رزرو شده)
-          # ============================================================
-          OBFUSCATOR_FLAGS = [
-              "--compact", "true",
-              "--control-flow-flattening", "true",
-              "--identifier-names-generator", "hexadecimal",
-              "--string-array", "true",
-              "--string-array-encoding", "base64",
-              "--string-array-threshold", "0.75",
-              "--split-strings", "true",
-              "--self-defending", "true",
-              "--debug-protection", "true",
-              "--dead-code-injection", "true",
-              "--numbers-to-expressions", "true",
-              "--unicode-escape-sequence", "true",
-              # 👇 دستور طلایی: این کلمات رو دست نزن! 👇
-              "--reserved-strings", RESERVED_WORDS,
+          # ------------------------------------------------------------
+          # لیست رشته‌هایی که هرگز نباید مبهم شوند (داده‌های کاربر)
+          # اگر کلید جدیدی در localStorage/IndexedDB داری، اینجا اضافه کن
+          # ------------------------------------------------------------
+          PROTECTED_LITERALS = [
+              # --- localStorage / sessionStorage keys ---
+              "wallet", "Wallet", "WALLET",
+              "address", "Address", "ADDRESS",
+              "privateKey", "private_key", "PRIVATE_KEY",
+              "mnemonic", "seed", "SEED", "SeedPhrase",
+              "password", "pass", "PIN", "pin",
+              "token", "authToken", "accessToken", "refreshToken",
+              "session", "user", "username", "email", "phone",
+              "balance", "Balance", "BALANCE",
+              "history", "transactions", "txs",
+              "settings", "config", "preferences",
+              "biometric", "biometry", "fingerprint", "faceId",
+              "notifications", "fcm", "deviceId",
+              "foxeggs", "FoxEggs", "FOXEGGS",
+              "fox_", "_fox", "Fox",
+              # --- API / storage method names ---
+              "localStorage", "sessionStorage", "indexedDB",
+              "getItem", "setItem", "removeItem", "clear",
+              "postMessage", "BroadcastChannel",
+              # --- Capacitor plugins ---
+              "Capacitor", "Plugins", "LocalNotifications",
+              "NativeBiometric", "Preferences", "Filesystem",
+              # --- Event / DOM identifiers رایج ---
+              "addEventListener", "dispatchEvent", "CustomEvent",
           ]
 
-          def obfuscate_js_content(content, label):
-              if len(content.strip()) < 100:
-                  return content
+          # کلمات کلیدی JS و APIهای بومی که هرگز نباید rename شوند
+          RESERVED_IDENTIFIERS = [
+              "window", "document", "navigator", "location", "history",
+              "console", "Math", "JSON", "Date", "Promise", "Object",
+              "Array", "String", "Number", "Boolean", "Function",
+              "Symbol", "Map", "Set", "WeakMap", "WeakSet",
+              "Error", "TypeError", "SyntaxError", "RegExp",
+              "undefined", "null", "true", "false", "this",
+              "localStorage", "sessionStorage", "indexedDB",
+              "fetch", "XMLHttpRequest", "WebSocket", "Worker",
+              "requestAnimationFrame", "setTimeout", "setInterval",
+              "clearTimeout", "clearInterval",
+              "alert", "confirm", "prompt",
+              "parseInt", "parseFloat", "isNaN", "isFinite",
+              "encodeURIComponent", "decodeURIComponent",
+              "atob", "btoa", "crypto", "subtle",
+              # Capacitor / Cordova
+              "Capacitor", "cordova", "plugins",
+              # Android bridge
+              "Android", "webkit", "JavascriptInterface",
+          ]
 
-              with open("__tmp_in.js", "w", encoding="utf-8") as f:
-                  f.write(content)
+          def build_obf_options(extra_strings=None):
+              opts = [
+                  "--compact", "true",
+                  "--control-flow-flattening", "true",
+                  "--control-flow-flattening-threshold", "0.7",
+                  "--dead-code-injection", "true",
+                  "--dead-code-injection-threshold", "0.3",
+                  "--identifier-names-generator", "mangled-shuffled",
+                  "--rename-globals", "false",
+                  "--rename-properties", "false",
+                  "--string-array", "true",
+                  "--string-array-encoding", "base64",
+                  "--string-array-threshold", "0.75",
+                  "--string-array-rotate", "true",
+                  "--string-array-shuffle", "true",
+                  "--string-array-wrappers-count", "2",
+                  "--split-strings", "true",
+                  "--split-strings-chunk-length", "6",
+                  "--debug-protection", "true",
+                  "--disable-console-output", "false",
+              ]
 
-              result = subprocess.run(
-                  [OBFUSCATOR, "__tmp_in.js", "--output", "__tmp_out.js"] + OBFUSCATOR_FLAGS,
-                  capture_output=True, text=True
-              )
+              for s in RESERVED_IDENTIFIERS + PROTECTED_LITERALS:
+                  if re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', s):
+                      opts += ["--reserved-names", s]
 
-              out_content = None
-              if result.returncode == 0 and os.path.exists("__tmp_out.js"):
-                  with open("__tmp_out.js", "r", encoding="utf-8") as f:
-                      out_content = f.read()
-              else:
-                  print(f"[WARN] Obfuscation FAILED for {label}")
-                  print(f"       stderr: {result.stderr[:300]}")
+              protected_strings = [s for s in PROTECTED_LITERALS if len(s) >= 2]
+              if extra_strings:
+                  for s in extra_strings:
+                      if s and 2 <= len(s) <= 100 and s not in protected_strings:
+                          protected_strings.append(s)
+              opts += ["--reserved-strings", ",".join(protected_strings)]
 
-              for p in ("__tmp_in.js", "__tmp_out.js"):
-                  if os.path.exists(p):
-                      os.remove(p)
+              return opts
 
-              return out_content if out_content else content
+          def obfuscate(js_code, tag, extra_strings=None):
+              tmpdir = tempfile.mkdtemp()
+              src = os.path.join(tmpdir, "in.js")
+              dst = os.path.join(tmpdir, "out.js")
+              try:
+                  with open(src, "w", encoding="utf-8") as f:
+                      f.write(js_code)
+                  res = subprocess.run(
+                      ["javascript-obfuscator", src, "--output", dst,
+                       *build_obf_options(extra_strings)],
+                      capture_output=True, text=True
+                  )
+                  if res.returncode != 0:
+                      print(f"⚠️  Obfuscation FAILED for {tag}:")
+                      print(res.stderr[:1500])
+                      return None
+                  if not os.path.exists(dst):
+                      print(f"⚠️  No output produced for {tag}")
+                      return None
+                  with open(dst, "r", encoding="utf-8") as f:
+                      return f.read()
+              finally:
+                  shutil.rmtree(tmpdir, ignore_errors=True)
 
-          # پردازش HTML
+          # ------------------------------------------------------------
+          # استخراج خودکار کلیدهای storage از کد
+          # ------------------------------------------------------------
+          STORAGE_KEY_PATTERN = re.compile(
+              r'(?:localStorage|sessionStorage)\.(?:getItem|setItem|removeItem)'
+              r'\s*\(\s*[\'"]([^\'"]+)[\'"]',
+              re.DOTALL
+          )
+
+          def extract_storage_keys(js):
+              keys = set()
+              for m in STORAGE_KEY_PATTERN.finditer(js):
+                  k = m.group(1).strip()
+                  if 2 <= len(k) <= 100:
+                      keys.add(k)
+              for m in re.finditer(r'objectStore\s*\(\s*[\'"]([^\'"]+)[\'"]', js):
+                  keys.add(m.group(1))
+              for m in re.finditer(r'document\.cookie\s*=\s*[\'"]([^\'=]+)=', js):
+                  keys.add(m.group(1).strip())
+              return keys
+
+          # ------------------------------------------------------------
+          # ۱) مبهم‌سازی script های داخل HTML
+          # ------------------------------------------------------------
           with open("www/index.html", "r", encoding="utf-8") as f:
               html = f.read()
 
-          def obfuscate_inline_script(match):
-              js = match.group(1)
-              return "<script>\n" + obfuscate_js_content(js, "inline") + "\n</script>"
+          dynamic_keys = list(extract_storage_keys(html))
 
-          html = re.sub(
-              r'<script(?:\s+[^>]*)?>(.*?)</script>',
-              obfuscate_inline_script,
-              html,
-              flags=re.DOTALL
-          )
+          script_re = re.compile(r'<script(\s[^>]*)?>(.*?)</script>', re.DOTALL)
+          stats = {"total": 0, "obfuscated": 0, "skipped": 0, "failed": 0}
 
+          def repl(m):
+              attrs = m.group(1) or ""
+              body = m.group(2)
+              stats["total"] += 1
+              if 'src=' in attrs or not body.strip():
+                  stats["skipped"] += 1
+                  return m.group(0)
+              if re.search(r'type\s*=\s*[\'"](?:application/ld\+json|importmap|application/json)[\'"]', attrs):
+                  stats["skipped"] += 1
+                  return m.group(0)
+
+              # کلیدهای استفاده‌شده در همین اسکریپت را هم protected کن
+              local_keys = list(extract_storage_keys(body))
+              obs = obfuscate(body, f"<script#{stats['total']}>",
+                              extra_strings=dynamic_keys + local_keys)
+              if obs is None:
+                  stats["failed"] += 1
+                  return m.group(0)
+              stats["obfuscated"] += 1
+              return f'<script{attrs}>{obs}</script>'
+
+          html = script_re.sub(repl, html)
           with open("www/index.html", "w", encoding="utf-8") as f:
               f.write(html)
+          print(f"📊 HTML scripts: total={stats['total']} obf={stats['obfuscated']} "
+                f"skip={stats['skipped']} fail={stats['failed']}")
 
-          # Minify HTML
-          subprocess.run([
-              "html-minifier-terser",
-              "--collapse-whitespace",
-              "--remove-comments",
-              "--minify-css", "true",
-              "--minify-js", "false",
-              "--remove-attribute-quotes",
-              "www/index.html",
-              "-o", "www/index.html.min"
-          ], capture_output=True)
+          # ------------------------------------------------------------
+          # ۲) مبهم‌سازی price.js
+          # ------------------------------------------------------------
+          if os.path.exists("www/price.js"):
+              with open("www/price.js", "r", encoding="utf-8") as f:
+                  js = f.read()
+              js_keys = list(extract_storage_keys(js))
+              obs = obfuscate(js, "price.js", extra_strings=dynamic_keys + js_keys)
+              if obs is None:
+                  raise SystemExit("❌ price.js obfuscation failed — aborting build")
+              with open("www/price.js", "w", encoding="utf-8") as f:
+                  f.write(obs)
+              print("✅ price.js obfuscated")
+          else:
+              print("⚠️  price.js missing — skipping")
 
-          if os.path.exists("www/index.html.min"):
-              os.replace("www/index.html.min", "www/index.html")
-
-          print("✅ Obfuscation and Minify complete.")
+          print("✅ Obfuscation done (safe mode: user data protected)")
           PY
 
       # ==========================================
@@ -287,7 +338,7 @@ jobs:
         run: npm install
 
       # ==========================================
-      # CREATE CAPACITOR CONFIG (با حفظ پکیج قبلی)
+      # CREATE CAPACITOR CONFIG
       # ==========================================
       - name: Create Capacitor config
         run: |
@@ -329,6 +380,10 @@ jobs:
               original = f.read()
 
           package_match = re.search(r'^\s*package\s+([^;]+);', original, re.MULTILINE)
+
+          if not package_match:
+              raise SystemExit("Package name not found.")
+
           package_name = package_match.group(1)
 
           fullscreen_activity = f'''package {package_name};
@@ -336,16 +391,20 @@ jobs:
           import android.os.Bundle;
           import android.view.View;
           import android.view.WindowManager;
+
           import com.getcapacitor.BridgeActivity;
 
           public class MainActivity extends BridgeActivity {{
+
               @Override
               public void onCreate(Bundle savedInstanceState) {{
                   super.onCreate(savedInstanceState);
+
                   getWindow().setFlags(
                       WindowManager.LayoutParams.FLAG_FULLSCREEN,
                       WindowManager.LayoutParams.FLAG_FULLSCREEN
                   );
+
                   getWindow().getDecorView().setSystemUiVisibility(
                       View.SYSTEM_UI_FLAG_FULLSCREEN
                       | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
@@ -381,6 +440,8 @@ jobs:
           VERSION_NAME="1.0.${RUN_NUMBER}"
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "Version Code: $VERSION_CODE"
+          echo "Version Name: $VERSION_NAME"
 
       # ==========================================
       # LOAD KEYSTORE
@@ -391,6 +452,7 @@ jobs:
         run: |
           test -n "$KEYSTORE_BASE64"
           echo "$KEYSTORE_BASE64" | base64 --decode > FoxEggs.keystore
+          test -s FoxEggs.keystore
           mkdir -p android/app
           cp FoxEggs.keystore android/app/FoxEggs.keystore
           echo "Keystore loaded."
@@ -403,7 +465,22 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           test -n "$KEYSTORE_PASSWORD"
-          ALIAS=$(keytool -list -keystore android/app/FoxEggs.keystore -storepass "$KEYSTORE_PASSWORD" 2>/dev/null | grep "PrivateKeyEntry" | head -n 1 | cut -d',' -f1 | xargs)
+
+          ALIAS=$(keytool -list -keystore android/app/FoxEggs.keystore \
+            -storepass "$KEYSTORE_PASSWORD" 2>/dev/null \
+            | grep "PrivateKeyEntry" \
+            | head -n 1 \
+            | cut -d',' -f1 \
+            | xargs)
+
+          if [ -z "$ALIAS" ]; then
+            echo "❌ No PrivateKeyEntry alias found!"
+            exit 1
+          fi
+
+          echo "✅ AUTO-DETECTED ALIAS: $ALIAS"
+          echo "DETECTED_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+
           cat >> android/gradle.properties <<EOF
 
           FOXEGGS_KEYSTORE_FILE=FoxEggs.keystore
@@ -412,8 +489,10 @@ jobs:
           FOXEGGS_KEY_PASSWORD=${KEYSTORE_PASSWORD}
           EOF
 
+          echo "Signing properties configured."
+
       # ==========================================
-      # CONFIGURE ANDROID GRADLE (بدون تغییر اسم پکیج)
+      # CONFIGURE ANDROID GRADLE
       # ==========================================
       - name: Configure Android Gradle
         run: |
@@ -425,13 +504,15 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          # 🔴 اسم پکیج عمداً تغییر نمیکنه تا اطلاعات کاربران قبلی پاک نشه
-          # text = re.sub(r'applicationId\s+"[^"]+"', 'applicationId "com.foxeggs.wallet"', text, count=1)
-          
+          text = re.sub(r'applicationId\s+"[^"]+"', 'applicationId "com.foxeggs.wallet"', text, count=1)
           text = re.sub(r'compileSdk\s+\d+', 'compileSdk 35', text, count=1)
           text = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ["VERSION_CODE"], text, count=1)
           text = re.sub(r'versionName\s+"[^"]+"', 'versionName "' + os.environ["VERSION_NAME"] + '"', text, count=1)
-          text = re.sub(r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)', '', text, count=1, flags=re.S)
+
+          text = re.sub(
+              r'\n\s*signingConfigs\s*\{.*?\n\s*\}\s*(?=\n\s*buildTypes)',
+              '', text, count=1, flags=re.S
+          )
 
           signing_block = '''
               signingConfigs {
@@ -450,11 +531,19 @@ jobs:
           if "signingConfigs {" not in text:
               text = text.replace("    buildTypes {", signing_block + "    buildTypes {", 1)
 
+          release_pattern = r'(buildTypes\s*\{\s*release\s*\{)'
           if "signingConfig signingConfigs.release" not in text:
-              text = re.sub(r'(buildTypes\s*\{\s*release\s*\{)', r'\1\n            signingConfig signingConfigs.release', text, count=1, flags=re.S)
+              text = re.sub(
+                  release_pattern,
+                  r'\1\n            signingConfig signingConfigs.release',
+                  text, count=1, flags=re.S
+              )
 
           if re.search(r'buildTypes\s*\{.*?release\s*\{', text, re.S):
-              release_match = re.search(r'(buildTypes\s*\{\s*release\s*\{)(.*?)(\n\s*\})', text, re.S)
+              release_match = re.search(
+                  r'(buildTypes\s*\{\s*release\s*\{)(.*?)(\n\s*\})',
+                  text, re.S
+              )
               if release_match:
                   release_body = release_match.group(2)
                   if "minifyEnabled" in release_body:
@@ -465,6 +554,8 @@ jobs:
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
+
+          print("Android Gradle configured.")
           PY
 
       # ==========================================
@@ -478,12 +569,28 @@ jobs:
           with open(path, "r", encoding="utf-8") as f:
               text = f.read()
 
-          permissions = ["READ_CONTACTS", "WRITE_CONTACTS", "READ_SMS", "SEND_SMS", "RECEIVE_SMS", "CALL_PHONE", "READ_PHONE_STATE", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "RECORD_AUDIO", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE", "MANAGE_EXTERNAL_STORAGE", "REQUEST_INSTALL_PACKAGES", "SYSTEM_ALERT_WINDOW", "BIND_ACCESSIBILITY_SERVICE"]
-          for p in permissions:
-              text = re.sub(r'\s*<uses-permission\s+android:name="android\.permission\.' + p + r'"\s*/>', '', text)
+          permissions = [
+              "READ_CONTACTS", "WRITE_CONTACTS", "READ_SMS", "SEND_SMS",
+              "RECEIVE_SMS", "CALL_PHONE", "READ_PHONE_STATE",
+              "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION",
+              "RECORD_AUDIO",
+              "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE",
+              "MANAGE_EXTERNAL_STORAGE", "REQUEST_INSTALL_PACKAGES",
+              "SYSTEM_ALERT_WINDOW", "BIND_ACCESSIBILITY_SERVICE"
+          ]
+
+          for permission in permissions:
+              pattern = (
+                  r'\s*<uses-permission\s+'
+                  r'android:name="android\.permission\.'
+                  + permission + r'"\s*/>'
+              )
+              text = re.sub(pattern, '', text)
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
+
+          print("Unnecessary permissions removed.")
           PY
 
       # ==========================================
@@ -498,7 +605,16 @@ jobs:
               text = f.read()
 
           extras = ""
-          for perm in ["android.permission.INTERNET", "android.permission.USE_BIOMETRIC", "android.permission.USE_FINGERPRINT", "android.permission.POST_NOTIFICATIONS", "android.permission.VIBRATE", "android.permission.SCHEDULE_EXACT_ALARM", "android.permission.RECEIVE_BOOT_COMPLETED", "android.permission.CAMERA"]:
+          for perm in [
+              "android.permission.INTERNET",
+              "android.permission.USE_BIOMETRIC",
+              "android.permission.USE_FINGERPRINT",
+              "android.permission.POST_NOTIFICATIONS",
+              "android.permission.VIBRATE",
+              "android.permission.SCHEDULE_EXACT_ALARM",
+              "android.permission.RECEIVE_BOOT_COMPLETED",
+              "android.permission.CAMERA"
+          ]:
               if perm not in text:
                   extras += f'    <uses-permission android:name="{perm}" />\n'
 
@@ -507,6 +623,8 @@ jobs:
 
           with open(path, "w", encoding="utf-8") as f:
               f.write(text)
+
+          print("Permissions added.")
           PY
 
       # ==========================================
@@ -522,11 +640,52 @@ jobs:
         run: |
           python3 - <<'PY'
           import os
+
           extensions = (".png", ".jpg", ".jpeg", ".webp")
-          icon_file = "icon.png" if os.path.exists("icon.png") else [f for f in os.listdir(".") if os.path.isfile(f) and f.lower().endswith(extensions) and "notification" not in f.lower()][0]
-          with open("CUSTOM_ICON", "w") as f: f.write(icon_file)
-          notif_file = "notification.png" if os.path.exists("notification.png") else icon_file
-          with open("CUSTOM_NOTIFICATION", "w") as f: f.write(notif_file)
+
+          icon_file = None
+          if os.path.exists("icon.png"):
+              icon_file = "icon.png"
+          else:
+              files = [f for f in os.listdir(".")
+                       if os.path.isfile(f) and f.lower().endswith(extensions)]
+              files = [f for f in files if "notification" not in f.lower()]
+              if files:
+                  icon_file = files[0]
+
+          if not icon_file:
+              raise SystemExit("❌ No launcher icon found! Please add icon.png")
+
+          print("=" * 50)
+          print("LAUNCHER ICON:", icon_file)
+          print("=" * 50)
+
+          with open("CUSTOM_ICON", "w") as f:
+              f.write(icon_file)
+
+          notif_options = [
+              "notification.png",
+              "notification-white.png",
+              "ic_notification.png",
+              "notif.png"
+          ]
+
+          notif_file = None
+          for opt in notif_options:
+              if os.path.exists(opt):
+                  notif_file = opt
+                  break
+
+          if notif_file:
+              print("NOTIFICATION ICON:", notif_file)
+              with open("CUSTOM_NOTIFICATION", "w") as f:
+                  f.write(notif_file)
+          else:
+              print("⚠️  NO NOTIFICATION ICON FOUND")
+              print("⚠️  Will use launcher icon instead")
+              with open("CUSTOM_NOTIFICATION", "w") as f:
+                  f.write(icon_file)
+          print("=" * 50)
           PY
 
       # ==========================================
@@ -537,15 +696,28 @@ jobs:
           python3 - <<'PY'
           from PIL import Image
           import os
-          with open("CUSTOM_ICON", "r") as f: filename = f.read().strip()
+
+          with open("CUSTOM_ICON", "r") as f:
+              filename = f.read().strip()
+
+          print("Loading launcher icon:", filename)
+
           source = Image.open(filename).convert("RGBA")
-          for density, size in {"mdpi": 48, "hdpi": 72, "xhdpi": 96, "xxhdpi": 144, "xxxhdpi": 192}.items():
+
+          sizes = {
+              "mdpi": 48, "hdpi": 72, "xhdpi": 96,
+              "xxhdpi": 144, "xxxhdpi": 192
+          }
+
+          for density, size in sizes.items():
               folder = "android/app/src/main/res/mipmap-" + density
               os.makedirs(folder, exist_ok=True)
               icon = source.resize((size, size), Image.Resampling.LANCZOS)
               icon.save(folder + "/ic_launcher.png")
               icon.save(folder + "/ic_launcher_round.png")
               icon.save(folder + "/ic_launcher_foreground.png")
+
+          print("✅ Launcher icons created from", filename)
           PY
 
       # ==========================================
@@ -556,20 +728,41 @@ jobs:
           python3 - <<'PY'
           from PIL import Image
           import os
-          with open("CUSTOM_NOTIFICATION", "r") as f: filename = f.read().strip()
+
+          with open("CUSTOM_NOTIFICATION", "r") as f:
+              filename = f.read().strip()
+
+          print("Loading notification icon:", filename)
+
           source = Image.open(filename).convert("RGBA")
+
           def make_mono(img, size):
               img = img.resize((size, size), Image.Resampling.LANCZOS)
               data = img.getdata()
-              new_data = [(255, 255, 255, 255) if item[3] > 50 else (0, 0, 0, 0) for item in data]
+              new_data = []
+              for item in data:
+                  if item[3] > 50:
+                      new_data.append((255, 255, 255, 255))
+                  else:
+                      new_data.append((0, 0, 0, 0))
               img.putdata(new_data)
               return img
-          for density, size in {"mdpi": 24, "hdpi": 36, "xhdpi": 48, "xxhdpi": 72, "xxxhdpi": 96}.items():
+
+          for density, size in {
+              "mdpi": 24, "hdpi": 36, "xhdpi": 48,
+              "xxhdpi": 72, "xxxhdpi": 96
+          }.items():
               folder = "android/app/src/main/res/drawable-" + density
               os.makedirs(folder, exist_ok=True)
-              make_mono(source.copy(), size).save(folder + "/ic_notification.png")
-          os.makedirs("android/app/src/main/res/drawable", exist_ok=True)
-          make_mono(source.copy(), 96).save("android/app/src/main/res/drawable/ic_notification.png")
+              mono = make_mono(source.copy(), size)
+              mono.save(folder + "/ic_notification.png")
+
+          drawable_folder = "android/app/src/main/res/drawable"
+          os.makedirs(drawable_folder, exist_ok=True)
+          mono = make_mono(source.copy(), 96)
+          mono.save(drawable_folder + "/ic_notification.png")
+
+          print("✅ Notification icons created from", filename)
           PY
 
       # ==========================================
@@ -579,6 +772,26 @@ jobs:
         run: |
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+
+      # ==========================================
+      # VERIFY
+      # ==========================================
+      - name: Verify icons
+        run: |
+          echo "=========================================="
+          echo "LAUNCHER ICONS"
+          echo "=========================================="
+          find android/app/src/main/res -name "ic_launcher*.png" | sort
+          echo ""
+          echo "=========================================="
+          echo "NOTIFICATION ICONS"
+          echo "=========================================="
+          find android/app/src/main/res -name "ic_notification.png" | sort
+          echo ""
+          echo "=========================================="
+          echo "WWW CONTENT"
+          echo "=========================================="
+          ls -la www/
 
       # ==========================================
       # BUILD APK
@@ -597,6 +810,10 @@ jobs:
         run: |
           mkdir -p release
           cp android/app/build/outputs/apk/release/app-release.apk release/FoxEggs-Wallet.apk
+
+          echo ""
+          echo "📦 حجم نهایی APK:"
+          du -h release/FoxEggs-Wallet.apk
           echo "✅ Release prepared."
 
       # ==========================================
