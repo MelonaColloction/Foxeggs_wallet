@@ -3796,8 +3796,9 @@ async function renderTxItem(tx, index) {
         
         // 👇 راه‌حل نهایی: اسم NFT را بردار و از پوشه image لود کن
         if (tx.nftName) {
-            displayImage = `image/${tx.nftName}.png`;
-        }
+    // تبدیل فاصله‌ها به %20 تا مرورگر بهتر فایل را پیدا کند
+    displayImage = `image/${encodeURIComponent(tx.nftName)}.png`; 
+}
         
         if (displayImage) {
             // اگر عکس با پسوند png پیدا نشد، به صورت خودکار jpg را امتحان می‌کند
@@ -3885,8 +3886,8 @@ async function openTxDetail(index) {
         
         // 👇 راه‌حل نهایی: اسم NFT را بردار و از پوشه image لود کن
         if (tx.nftName) {
-            displayImage = `image/${tx.nftName}.png`;
-        }
+    displayImage = `image/${encodeURIComponent(tx.nftName)}.png`;
+}
         
         let imageHtml = displayImage
             ? `<img src="${displayImage}" class="detail-nft-image" 
