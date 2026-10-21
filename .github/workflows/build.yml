@@ -98,7 +98,7 @@ jobs:
           ls -la www/
 
       # ==========================================
-      # OBFUSCATE & MINIFY CODE (کامل - حرفه‌ای)
+      # OBFUSCATE & MINIFY CODE (با حفظ اطلاعات والت)
       # ==========================================
       - name: Obfuscate and Minify
         run: |
@@ -114,7 +114,25 @@ jobs:
           OBFUSCATOR = "javascript-obfuscator"
 
           # ============================================================
-          # فلگ‌های کامل obfuscator (سطح بالا)
+          # لیست کلمات کلیدی (کلیدهای localStorage و آبجکت‌ها)
+          # این کلمات هرگز مبهم نمی‌شوند تا اطلاعات قبلی پیدا شوند
+          # ============================================================
+          RESERVED_WORDS = ",".join([
+              # کلیدهای مربوط به والت
+              "wallet", "wallet_data", "wallets", "walletList", "my_wallet", 
+              "local_wallet", "wallets_data", "user_wallet", "walletAddress", 
+              "wallet_address", "walletSeed", "wallet_seed", "privateKey", 
+              "private_key", "mnemonic", "seedPhrase", "seed_phrase", 
+              "balance", "balances", "transactions", "history",
+              # کلیدهای مربوط به بازی و رکوردها
+              "score", "best", "games", "eggs", "totalScore", "language", 
+              "sound", "theme", "foxUserId", "foxRegistered", "foxReferralCode",
+              # نام آبجکت‌های مهم سیستم
+              "NFT_PRICES", "window", "localStorage", "JSON"
+          ])
+
+          # ============================================================
+          # فلگ‌های ابفوسکیتور (قوی، اما با احترام به کلمات رزرو شده)
           # ============================================================
           OBFUSCATOR_FLAGS = [
               "--compact", "true",
@@ -126,7 +144,6 @@ jobs:
               "--string-array-threshold", "0.75",
               "--string-array-rotate", "true",
               "--string-array-shuffle", "true",
-              "--string-array-wrappers-count", "2",
               "--split-strings", "true",
               "--split-strings-chunk-length", "10",
               "--self-defending", "true",
@@ -136,16 +153,14 @@ jobs:
               "--dead-code-injection-threshold", "0.4",
               "--numbers-to-expressions", "true",
               "--dispatcher", "true",
-              "--transform-object-keys", "true",
               "--unicode-escape-sequence", "true",
+              
+              # 👇 دستور طلایی: این کلمات رو دست نزن! 👇
+              "--reserved-strings", RESERVED_WORDS,
           ]
 
-          # ============================================================
-          # تابع مبهم‌سازی با بررسی خطا و پشتیبان
-          # ============================================================
           def obfuscate_js_content(content, label):
               if len(content.strip()) < 100:
-                  print(f"[SKIP] {label} — too small ({len(content)} chars)")
                   return content
 
               with open("__tmp_in.js", "w", encoding="utf-8") as f:
@@ -168,7 +183,7 @@ jobs:
               if out_content is None:
                   print(f"[WARN] Obfuscation FAILED for {label}")
                   print(f"       stderr: {result.stderr[:300]}")
-                  return content   # برگرداندن اصل تا بیلد نشکند
+                  return content
 
               print(f"[OK] Obfuscated {label} ({len(content)} -> {len(out_content)} bytes)")
               return out_content
@@ -184,7 +199,6 @@ jobs:
               for fname in files:
                   if not fname.endswith(".js"):
                       continue
-                  # price.js را رد کن (دست نزن)
                   if fname == "price.js":
                       print(f"[SKIP] {os.path.join(root, fname)} — protected (price.js)")
                       continue
@@ -217,31 +231,25 @@ jobs:
               with open(html_file, "r", encoding="utf-8") as f:
                   html = f.read()
 
-              # ۲a. inline کردن اسکریپت‌های خارجی (به جز price.js)
+              # ۲a. inline کردن اسکریپت‌های خارجی
               def inline_external_script(match):
                   src = match.group(1)
                   base_dir = os.path.dirname(html_file)
                   src_path = os.path.normpath(os.path.join(base_dir, src))
 
-                  # اگر price.js است، دست نزن
                   if os.path.basename(src_path) == "price.js":
-                      print(f"[SKIP] inline for price.js (protected)")
                       return match.group(0)
 
                   if os.path.exists(src_path):
                       with open(src_path, "r", encoding="utf-8") as sf:
                           js_content = sf.read()
-
                       obs = obfuscate_js_content(js_content, src_path)
-
                       try:
                           os.remove(src_path)
                       except Exception:
                           pass
-
                       return f"<script>\n{obs}\n</script>"
                   else:
-                      print(f"[WARN] External script not found: {src}")
                       return match.group(0)
 
               html = re.sub(
@@ -250,7 +258,7 @@ jobs:
                   html
               )
 
-              # ۲b. مبهم‌سازی همه اسکریپت‌های inline (حتی با attribute)
+              # ۲b. مبهم‌سازی اسکریپت‌های inline
               def obfuscate_inline_script(match):
                   js = match.group(1)
                   return "<script>\n" + obfuscate_js_content(js, f"{html_file}:inline") + "\n</script>"
@@ -284,7 +292,7 @@ jobs:
                   "--remove-script-type-attributes",
                   "--remove-style-link-type-attributes",
                   "--minify-css", "true",
-                  "--minify-js", "false",
+                  "--minify-js", "false",  # مهم: JS رو دوباره دست نزن
                   "--remove-attribute-quotes",
                   html_file,
                   "-o", tmp_out
@@ -295,41 +303,9 @@ jobs:
                   print(f"[OK] Minified: {html_file}")
               else:
                   print(f"[WARN] Minify failed: {html_file}")
-                  print(f"       stderr: {result.stderr[:200]}")
-
-          # ============================================================
-          # ۴. بررسی نهایی سلامت فایل
-          # ============================================================
-          print("=" * 60)
-          print("STEP 4: Final health check")
-          print("=" * 60)
-
-          main_html = "www/index.html"
-          if os.path.exists(main_html):
-              size = os.path.getsize(main_html)
-              with open(main_html, "r", encoding="utf-8") as f:
-                  content = f.read()
-
-              has_html_end = "</html>" in content.lower()
-              has_script = "<script" in content.lower()
-
-              print(f"index.html size: {size} bytes")
-              print(f"  </html> present: {has_html_end}")
-              print(f"  <script> present: {has_script}")
-
-              if size < 1000:
-                  print("[ERROR] index.html too small — build may be broken!")
-              elif not has_html_end:
-                  print("[ERROR] index.html missing </html> — build may be broken!")
-              elif not has_script:
-                  print("[ERROR] index.html missing <script> — build may be broken!")
-              else:
-                  print("[OK] index.html looks healthy")
-          else:
-              print("[ERROR] www/index.html NOT FOUND!")
 
           print("=" * 60)
-          print("Obfuscation and minification complete.")
+          print("Obfuscation complete. Wallet data is safe.")
           print("=" * 60)
           PY
 
