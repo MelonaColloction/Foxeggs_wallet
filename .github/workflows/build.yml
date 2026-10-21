@@ -98,52 +98,240 @@ jobs:
           ls -la www/
 
       # ==========================================
-      # OBFUSCATE & MINIFY CODE
+      # OBFUSCATE & MINIFY CODE (کامل - حرفه‌ای)
       # ==========================================
       - name: Obfuscate and Minify
         run: |
-          echo "🔒 Installing obfuscator..."
+          echo "🔒 Installing obfuscator and minifiers..."
           npm install -g javascript-obfuscator
           npm install -g html-minifier-terser
-          
-          # ۱. فشرده‌سازی HTML
-          html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js false www/index.html -o www/index.html.min
-          mv www/index.html.min www/index.html
-          
-          # ۲. مبهم‌سازی JS داخل HTML
+
           python3 - <<'PY'
           import re
           import os
           import subprocess
-          
-          with open("www/index.html", "r", encoding="utf-8") as f:
-              html = f.read()
-          scripts = re.findall(r'<script>(.*?)</script>', html, re.DOTALL)
-          
-          for i, script in enumerate(scripts):
-              if len(script.strip()) < 100: continue
-              with open(f"temp_{i}.js", "w", encoding="utf-8") as f: f.write(script)
-              
-              subprocess.run([
-                  "javascript-obfuscator", f"temp_{i}.js", "--output", f"temp_{i}_obs.js",
-                  "--compact", "true", "--control-flow-flattening", "true",
-                  "--identifier-names-generator", "hexadecimal", "--string-array", "true",
-                  "--self-defending", "true"
-              ], capture_output=True)
-              
-              if os.path.exists(f"temp_{i}_obs.js"):
-                  with open(f"temp_{i}_obs.js", "r", encoding="utf-8") as f: obs = f.read()
-                  html = html.replace(script, obs, 1)
-              os.remove(f"temp_{i}.js")
-              if os.path.exists(f"temp_{i}_obs.js"): os.remove(f"temp_{i}_obs.js")
-              
-          with open("www/index.html", "w", encoding="utf-8") as f: f.write(html)
+
+          OBFUSCATOR = "javascript-obfuscator"
+
+          # ============================================================
+          # فلگ‌های کامل obfuscator (سطح بالا)
+          # ============================================================
+          OBFUSCATOR_FLAGS = [
+              "--compact", "true",
+              "--control-flow-flattening", "true",
+              "--control-flow-flattening-threshold", "0.75",
+              "--identifier-names-generator", "hexadecimal",
+              "--string-array", "true",
+              "--string-array-encoding", "base64",
+              "--string-array-threshold", "0.75",
+              "--string-array-rotate", "true",
+              "--string-array-shuffle", "true",
+              "--string-array-wrappers-count", "2",
+              "--split-strings", "true",
+              "--split-strings-chunk-length", "10",
+              "--self-defending", "true",
+              "--debug-protection", "true",
+              "--debug-protection-interval", "4000",
+              "--dead-code-injection", "true",
+              "--dead-code-injection-threshold", "0.4",
+              "--numbers-to-expressions", "true",
+              "--dispatcher", "true",
+              "--transform-object-keys", "true",
+              "--unicode-escape-sequence", "true",
+          ]
+
+          # ============================================================
+          # تابع مبهم‌سازی با بررسی خطا و پشتیبان
+          # ============================================================
+          def obfuscate_js_content(content, label):
+              if len(content.strip()) < 100:
+                  print(f"[SKIP] {label} — too small ({len(content)} chars)")
+                  return content
+
+              with open("__tmp_in.js", "w", encoding="utf-8") as f:
+                  f.write(content)
+
+              result = subprocess.run(
+                  [OBFUSCATOR, "__tmp_in.js", "--output", "__tmp_out.js"] + OBFUSCATOR_FLAGS,
+                  capture_output=True, text=True
+              )
+
+              out_content = None
+              if result.returncode == 0 and os.path.exists("__tmp_out.js"):
+                  with open("__tmp_out.js", "r", encoding="utf-8") as f:
+                      out_content = f.read()
+
+              for p in ("__tmp_in.js", "__tmp_out.js"):
+                  if os.path.exists(p):
+                      os.remove(p)
+
+              if out_content is None:
+                  print(f"[WARN] Obfuscation FAILED for {label}")
+                  print(f"       stderr: {result.stderr[:300]}")
+                  return content   # برگرداندن اصل تا بیلد نشکند
+
+              print(f"[OK] Obfuscated {label} ({len(content)} -> {len(out_content)} bytes)")
+              return out_content
+
+          # ============================================================
+          # ۱. مبهم‌سازی فایل‌های JS خارجی (به جز price.js)
+          # ============================================================
+          print("=" * 60)
+          print("STEP 1: Obfuscating external JS files (except price.js)")
+          print("=" * 60)
+
+          for root, dirs, files in os.walk("www"):
+              for fname in files:
+                  if not fname.endswith(".js"):
+                      continue
+                  # price.js را رد کن (دست نزن)
+                  if fname == "price.js":
+                      print(f"[SKIP] {os.path.join(root, fname)} — protected (price.js)")
+                      continue
+
+                  js_path = os.path.join(root, fname)
+                  with open(js_path, "r", encoding="utf-8") as f:
+                      original = f.read()
+
+                  obfuscated = obfuscate_js_content(original, js_path)
+
+                  with open(js_path, "w", encoding="utf-8") as f:
+                      f.write(obfuscated)
+
+          # ============================================================
+          # ۲. پردازش HTML: inline کردن + مبهم‌سازی + minify
+          # ============================================================
+          print("=" * 60)
+          print("STEP 2: Processing HTML files")
+          print("=" * 60)
+
+          html_files = []
+          for root, dirs, files in os.walk("www"):
+              for fname in files:
+                  if fname.endswith(".html"):
+                      html_files.append(os.path.join(root, fname))
+
+          for html_file in html_files:
+              print(f"--- Processing: {html_file} ---")
+
+              with open(html_file, "r", encoding="utf-8") as f:
+                  html = f.read()
+
+              # ۲a. inline کردن اسکریپت‌های خارجی (به جز price.js)
+              def inline_external_script(match):
+                  src = match.group(1)
+                  base_dir = os.path.dirname(html_file)
+                  src_path = os.path.normpath(os.path.join(base_dir, src))
+
+                  # اگر price.js است، دست نزن
+                  if os.path.basename(src_path) == "price.js":
+                      print(f"[SKIP] inline for price.js (protected)")
+                      return match.group(0)
+
+                  if os.path.exists(src_path):
+                      with open(src_path, "r", encoding="utf-8") as sf:
+                          js_content = sf.read()
+
+                      obs = obfuscate_js_content(js_content, src_path)
+
+                      try:
+                          os.remove(src_path)
+                      except Exception:
+                          pass
+
+                      return f"<script>\n{obs}\n</script>"
+                  else:
+                      print(f"[WARN] External script not found: {src}")
+                      return match.group(0)
+
+              html = re.sub(
+                  r'<script[^>]+src=["\']([^"\']+)["\'][^>]*>\s*</script>',
+                  inline_external_script,
+                  html
+              )
+
+              # ۲b. مبهم‌سازی همه اسکریپت‌های inline (حتی با attribute)
+              def obfuscate_inline_script(match):
+                  js = match.group(1)
+                  return "<script>\n" + obfuscate_js_content(js, f"{html_file}:inline") + "\n</script>"
+
+              html = re.sub(
+                  r'<script(?:\s+[^>]*)?>(.*?)</script>',
+                  obfuscate_inline_script,
+                  html,
+                  flags=re.DOTALL
+              )
+
+              with open(html_file, "w", encoding="utf-8") as f:
+                  f.write(html)
+
+              print(f"[OK] HTML processed: {html_file}")
+
+          # ============================================================
+          # ۳. Minify HTML نهایی
+          # ============================================================
+          print("=" * 60)
+          print("STEP 3: Minifying HTML")
+          print("=" * 60)
+
+          for html_file in html_files:
+              tmp_out = html_file + ".min"
+              result = subprocess.run([
+                  "html-minifier-terser",
+                  "--collapse-whitespace",
+                  "--remove-comments",
+                  "--remove-redundant-attributes",
+                  "--remove-script-type-attributes",
+                  "--remove-style-link-type-attributes",
+                  "--minify-css", "true",
+                  "--minify-js", "false",
+                  "--remove-attribute-quotes",
+                  html_file,
+                  "-o", tmp_out
+              ], capture_output=True, text=True)
+
+              if result.returncode == 0 and os.path.exists(tmp_out):
+                  os.replace(tmp_out, html_file)
+                  print(f"[OK] Minified: {html_file}")
+              else:
+                  print(f"[WARN] Minify failed: {html_file}")
+                  print(f"       stderr: {result.stderr[:200]}")
+
+          # ============================================================
+          # ۴. بررسی نهایی سلامت فایل
+          # ============================================================
+          print("=" * 60)
+          print("STEP 4: Final health check")
+          print("=" * 60)
+
+          main_html = "www/index.html"
+          if os.path.exists(main_html):
+              size = os.path.getsize(main_html)
+              with open(main_html, "r", encoding="utf-8") as f:
+                  content = f.read()
+
+              has_html_end = "</html>" in content.lower()
+              has_script = "<script" in content.lower()
+
+              print(f"index.html size: {size} bytes")
+              print(f"  </html> present: {has_html_end}")
+              print(f"  <script> present: {has_script}")
+
+              if size < 1000:
+                  print("[ERROR] index.html too small — build may be broken!")
+              elif not has_html_end:
+                  print("[ERROR] index.html missing </html> — build may be broken!")
+              elif not has_script:
+                  print("[ERROR] index.html missing <script> — build may be broken!")
+              else:
+                  print("[OK] index.html looks healthy")
+          else:
+              print("[ERROR] www/index.html NOT FOUND!")
+
+          print("=" * 60)
+          print("Obfuscation and minification complete.")
+          print("=" * 60)
           PY
-          
-          # ۳. مبهم‌سازی price.js
-          if [ -f www/price.js ]; then
-            javascript-obfuscator www/price.js --output www/price.js --compact true --control-flow-flattening true --identifier-names-generator hexadecimal --string-array true
-          fi
 
       # ==========================================
       # CREATE PACKAGE.JSON
@@ -630,7 +818,7 @@ jobs:
           ls -la www/
 
       # ==========================================
-      # BUILD APK (فقط APK)
+      # BUILD APK
       # ==========================================
       - name: Build Release APK
         working-directory: android
