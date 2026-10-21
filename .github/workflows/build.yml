@@ -98,6 +98,29 @@ jobs:
           ls -la www/
 
       # ==========================================
+      # INSPECT SCRIPTS (دیباگ — می‌توانی حذف کنی)
+      # ==========================================
+      - name: Inspect scripts in HTML
+        run: |
+          python3 - <<'PY'
+          import re
+          with open("www/index.html", encoding="utf-8") as f:
+              html = f.read()
+          matches = list(re.finditer(r'<script(\s[^>]*)?>(.*?)</script>', html, re.DOTALL))
+          print(f"Total scripts: {len(matches)}\n")
+          for i, m in enumerate(matches, 1):
+              attrs = (m.group(1) or "").strip()
+              body = m.group(2)
+              src = ""
+              sm = re.search(r'src\s*=\s*[\'"]([^\'"]+)[\'"]', attrs)
+              if sm: src = sm.group(1)
+              typ = ""
+              tm = re.search(r'type\s*=\s*[\'"]([^\'"]+)[\'"]', attrs)
+              if tm: typ = tm.group(1)
+              print(f"#{i}  len={len(body):>7}  type={typ or 'js':<20}  src={src or '(inline)'}")
+          PY
+
+      # ==========================================
       # OBFUSCATE & MINIFY CODE (SAFE MODE)
       # ==========================================
       - name: Obfuscate and Minify
@@ -106,7 +129,7 @@ jobs:
           npm install -g javascript-obfuscator
           npm install -g html-minifier-terser
 
-          # ۱. فشرده‌سازی HTML (JS را دست نمی‌زنیم چون خودمان مبهم می‌کنیم)
+          # ۱. فشرده‌سازی HTML (JS دست نمی‌خورد)
           html-minifier-terser \
             --collapse-whitespace \
             --remove-comments \
@@ -120,7 +143,7 @@ jobs:
           import re, os, subprocess, tempfile, shutil
 
           # ------------------------------------------------------------
-          # لیست رشته‌هایی که هرگز نباید مبهم شوند (داده‌های کاربر)
+          # رشته‌هایی که هرگز نباید مبهم شوند (داده‌های کاربر)
           # اگر کلید جدیدی در localStorage/IndexedDB داری، اینجا اضافه کن
           # ------------------------------------------------------------
           PROTECTED_LITERALS = [
@@ -146,7 +169,7 @@ jobs:
               # --- Capacitor plugins ---
               "Capacitor", "Plugins", "LocalNotifications",
               "NativeBiometric", "Preferences", "Filesystem",
-              # --- Event / DOM identifiers رایج ---
+              # --- Event / DOM identifiers ---
               "addEventListener", "dispatchEvent", "CustomEvent",
           ]
 
@@ -166,9 +189,7 @@ jobs:
               "parseInt", "parseFloat", "isNaN", "isFinite",
               "encodeURIComponent", "decodeURIComponent",
               "atob", "btoa", "crypto", "subtle",
-              # Capacitor / Cordova
               "Capacitor", "cordova", "plugins",
-              # Android bridge
               "Android", "webkit", "JavascriptInterface",
           ]
 
@@ -274,7 +295,6 @@ jobs:
                   stats["skipped"] += 1
                   return m.group(0)
 
-              # کلیدهای استفاده‌شده در همین اسکریپت را هم protected کن
               local_keys = list(extract_storage_keys(body))
               obs = obfuscate(body, f"<script#{stats['total']}>",
                               extra_strings=dynamic_keys + local_keys)
@@ -307,6 +327,38 @@ jobs:
               print("⚠️  price.js missing — skipping")
 
           print("✅ Obfuscation done (safe mode: user data protected)")
+          PY
+
+      # ==========================================
+      # VERIFY OBFUSCATION (دیباگ — می‌توانی حذف کنی)
+      # ==========================================
+      - name: Verify obfuscation
+        run: |
+          python3 - <<'PY'
+          import re, os
+          with open("www/index.html", encoding="utf-8") as f:
+              html = f.read()
+
+          print("=== inline scripts after obfuscation ===")
+          for i, m in enumerate(re.finditer(r'<script(\s[^>]*)?>(.*?)</script>', html, re.DOTALL), 1):
+              attrs = (m.group(1) or "").strip()
+              body = m.group(2)
+              if 'src=' in attrs:
+                  continue
+              if not body.strip():
+                  continue
+              print(f"inline #{i}: len={len(body)}")
+              print(f"  preview: {body[:180].strip()}")
+              if '_0x' in body or '\\x' in body or 'atob(' in body:
+                  print("  ✅ looks obfuscated")
+              else:
+                  print("  ⚠️  may NOT be obfuscated")
+
+          print("\n=== price.js ===")
+          if os.path.exists("www/price.js"):
+              print(f"  size: {os.path.getsize('www/price.js')} bytes")
+              with open("www/price.js", encoding="utf-8") as f:
+                  print(f"  preview: {f.read(180)}")
           PY
 
       # ==========================================
